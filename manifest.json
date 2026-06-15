@@ -1,0 +1,18 @@
+{
+  "name": "小管家 · 资产与储蓄",
+  "short_name": "小管家",
+  "description": "记录资产、负债、月末储蓄与财务 Notes",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f4f4f6",
+  "theme_color": "#f4f4f6",
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
