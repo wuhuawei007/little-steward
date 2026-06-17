@@ -39,7 +39,9 @@ let cloud = {
   client: null,
   session: null,
   syncing: false,
-  config: loadSupabaseConfig()
+  config: loadSupabaseConfig(),
+  diagnostic: "配置保存后，可以先测试连接。",
+  diagnosticType: ""
 };
 let localDataExists = Boolean(localStorage.getItem(STORAGE_KEY));
 
@@ -172,8 +174,12 @@ function renderCloudUI() {
   document.querySelector("#signedInBox").classList.toggle("hidden", !email);
   document.querySelector("#syncNowButton").disabled = !email || cloud.syncing;
   document.querySelector("#pullCloudButton").disabled = !email || cloud.syncing;
+  document.querySelector("#testSupabaseConnection").disabled = !hasConfig || cloud.syncing;
   document.querySelector("#signedInText").textContent = email ? `已登录：${email}` : "";
   status.textContent = !hasConfig ? "未配置" : email ? (cloud.syncing ? "正在同步..." : "已登录并可同步") : "已配置，等待登录";
+  const diagnostic = document.querySelector("#cloudDiagnostic");
+  diagnostic.textContent = cloud.diagnostic;
+  diagnostic.className = `cloud-diagnostic ${cloud.diagnosticType}`;
 }
 
 function field(label, name, value = "", type = "text", extra = "") {
@@ -241,12 +247,47 @@ async function signInWithEmail() {
   const email = document.querySelector("#authEmailInput").value.trim();
   if (!client) return showToast("请先保存 Supabase 配置");
   if (!email) return showToast("请输入邮箱");
-  const { error } = await client.auth.signInWithOtp({
-    email,
-    options: { emailRedirectTo: location.origin + location.pathname }
-  });
-  if (error) return showToast(error.message);
-  showToast("登录链接已发送，请查看邮箱");
+  try {
+    cloud.diagnostic = "正在向 Supabase 发送登录邮件请求...";
+    cloud.diagnosticType = "";
+    renderCloudUI();
+    const { error } = await client.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: location.origin + location.pathname }
+    });
+    if (error) throw error;
+    cloud.diagnostic = `Supabase 已接受请求：登录链接已发送到 ${email}。如果没收到，请看 Authentication → Logs。`;
+    cloud.diagnosticType = "ok";
+    renderCloudUI();
+    showToast("登录链接已发送，请查看邮箱");
+  } catch (error) {
+    cloud.diagnostic = `发送失败：${error.message || error}`;
+    cloud.diagnosticType = "error";
+    renderCloudUI();
+    showToast("发送失败，请查看诊断信息");
+  }
+}
+async function testSupabaseConnection() {
+  const client = ensureSupabaseClient();
+  if (!client) return showToast("请先保存 Supabase 配置");
+  cloud.syncing = true;
+  cloud.diagnostic = "正在测试 Supabase 连接...";
+  cloud.diagnosticType = "";
+  renderCloudUI();
+  try {
+    const { error } = await client.from("little_steward_settings").select("user_id").limit(1);
+    if (error) throw error;
+    cloud.diagnostic = "连接成功：Project URL、Publishable Key、数据库表都可以访问。现在可以发送登录链接。";
+    cloud.diagnosticType = "ok";
+    showToast("Supabase 连接成功");
+  } catch (error) {
+    cloud.diagnostic = `连接失败：${error.message || error}`;
+    cloud.diagnosticType = "error";
+    showToast("连接失败，请查看诊断信息");
+  } finally {
+    cloud.syncing = false;
+    renderCloudUI();
+  }
 }
 async function signOut() {
   if (!cloud.client) return;
@@ -451,10 +492,13 @@ document.querySelector("#saveSupabaseConfig").onclick = async () => {
   if (!url || !anonKey) return showToast("请填写 URL 和 anon public key");
   saveSupabaseConfig({ url, anonKey });
   cloud.client = null;
+  cloud.diagnostic = "配置已保存。请点击“测试 Supabase 连接”。";
+  cloud.diagnosticType = "";
   await initCloud();
   showToast("Supabase 配置已保存");
 };
 document.querySelector("#sendLoginLink").onclick = signInWithEmail;
+document.querySelector("#testSupabaseConnection").onclick = testSupabaseConnection;
 document.querySelector("#signOutButton").onclick = signOut;
 document.querySelector("#syncNowButton").onclick = () => syncToCloud();
 document.querySelector("#pullCloudButton").onclick = () => pullFromCloud();

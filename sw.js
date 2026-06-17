@@ -1,4 +1,4 @@
-const CACHE = "little-steward-v2";
+const CACHE = "little-steward-v3";
 const FILES = ["./", "./index.html", "./styles.css", "./app.js", "./manifest.json", "./icon.svg"];
 self.addEventListener("activate", event => event.waitUntil(
   caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key))))

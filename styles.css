@@ -140,9 +140,13 @@ dialog[open] { animation: sheetUp .25s ease both; }
 .cloud-header span, .auth-box p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
 .cloud-panel textarea { min-height: 74px; font-size: 12px; }
 .cloud-panel .primary-button { padding: 12px 14px; border-radius: 13px; }
+.secondary-button { border: 0; border-radius: 13px; padding: 12px 14px; color: var(--text); background: rgba(118,118,128,.12); font-weight: 700; }
 .auth-box { display: grid; gap: 12px; padding-top: 4px; border-top: 1px solid var(--line); }
 .auth-box .danger-button { margin-top: 0; }
-.text-button:disabled, .primary-button:disabled { opacity: .45; cursor: not-allowed; }
+.cloud-diagnostic { margin: -2px 0 0; color: var(--muted); font-size: 11px; line-height: 1.45; word-break: break-word; }
+.cloud-diagnostic.error { color: var(--red); }
+.cloud-diagnostic.ok { color: var(--green); }
+.text-button:disabled, .primary-button:disabled, .secondary-button:disabled { opacity: .45; cursor: not-allowed; }
 .toast { position: fixed; left: 50%; bottom: 110px; z-index: 30; padding: 10px 15px; border-radius: 99px; color: white; background: rgba(20,20,22,.88); opacity: 0; pointer-events: none; transform: translate(-50%, 8px); transition: .2s ease; font-size: 12px; }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
