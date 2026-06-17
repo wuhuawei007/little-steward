@@ -7,6 +7,10 @@ const DEFAULT_ALPHA_VANTAGE_KEY = "SYC96IVAMPXH47F9";
 const colors = ["#4b73e8", "#ea8a3c", "#8671df", "#1f9d68", "#e2799c", "#575a63"];
 const icons = { property: "⌂", cash: "$", stock: "↗", fund: "F", crypto: "₿", loan: "−", other: "•" };
 const labels = { property: "房产", cash: "现金存款", stock: "股票", fund: "基金", crypto: "Crypto", loan: "贷款", other: "其他" };
+const marketSymbols = [
+  ["AAPL", "Apple"], ["MSFT", "Microsoft"], ["NVDA", "Nvidia"], ["TSLA", "Tesla"], ["GOOGL", "Alphabet"], ["AMZN", "Amazon"], ["META", "Meta"],
+  ["VOO", "Vanguard S&P 500 ETF"], ["VTI", "Vanguard Total Stock Market ETF"], ["QQQ", "Nasdaq 100 ETF"], ["IVV", "iShares S&P 500 ETF"], ["SPY", "SPDR S&P 500 ETF"]
+];
 
 const seedData = {
   currency: "AUD",
@@ -47,9 +51,9 @@ const seedData = {
     { id: "p5", month: "2026-05", assets: 1923900, liabilities: 900000 }
   ],
   priceWatch: [
-    { id: "w1", accountId: "a6", name: "Bitcoin", symbol: "BTC", source: "coingecko", coingeckoId: "bitcoin", quantity: 0.32, price: 115000, currency: "AUD", change24h: 0, updatedAt: "" },
-    { id: "w2", accountId: "a4", name: "Apple", symbol: "AAPL", source: "alphavantage", coingeckoId: "", quantity: 20, price: 195, currency: "USD", change24h: 0, updatedAt: "" },
-    { id: "w3", accountId: "", name: "Vanguard ETF Watch", symbol: "VTI", source: "alphavantage", coingeckoId: "", quantity: 0, price: 300, currency: "USD", change24h: 0, updatedAt: "" }
+    { id: "w1", accountId: "a6", name: "Bitcoin", symbol: "BTC", source: "coingecko", coingeckoId: "bitcoin", quantity: 0.32, price: 115000, currency: "AUD", quoteCurrency: "AUD", change24h: 0, updatedAt: "" },
+    { id: "w2", accountId: "a4", name: "Apple", symbol: "AAPL", source: "alphavantage", coingeckoId: "", quantity: 20, price: 195, currency: "USD", quoteCurrency: "USD", change24h: 0, updatedAt: "" },
+    { id: "w3", accountId: "", name: "Vanguard ETF Watch", symbol: "VTI", source: "alphavantage", coingeckoId: "", quantity: 0, price: 0, currency: "USD", quoteCurrency: "USD", change24h: 0, updatedAt: "" }
   ]
 };
 
@@ -115,11 +119,18 @@ function saveEncryptionConfig(config) {
   localStorage.setItem(ENCRYPTION_KEY, JSON.stringify(config));
 }
 function loadMarketConfig() {
-  try { return JSON.parse(localStorage.getItem(MARKET_CONFIG_KEY)) || { alphaVantageKey: DEFAULT_ALPHA_VANTAGE_KEY }; }
-  catch { return { alphaVantageKey: DEFAULT_ALPHA_VANTAGE_KEY }; }
+  try { return normalizeMarketConfig(JSON.parse(localStorage.getItem(MARKET_CONFIG_KEY)) || {}); }
+  catch { return normalizeMarketConfig({}); }
+}
+function normalizeMarketConfig(config) {
+  return {
+    alphaVantageKey: config.alphaVantageKey || DEFAULT_ALPHA_VANTAGE_KEY,
+    fxRates: config.fxRates || { "USD_AUD": 1.52, "AUD_USD": 0.66 },
+    fxUpdatedAt: config.fxUpdatedAt || ""
+  };
 }
 function saveMarketConfig(config) {
-  marketConfig = config;
+  marketConfig = normalizeMarketConfig(config);
   localStorage.setItem(MARKET_CONFIG_KEY, JSON.stringify(config));
 }
 function saveSupabaseConfig(config) {
@@ -132,8 +143,12 @@ function uid(prefix) {
 }
 function money(value, compact = false) {
   if (privacy) return "••••••";
+  return moneyInCurrency(value, data.currency, compact);
+}
+function moneyInCurrency(value, currency = data.currency, compact = false) {
+  if (privacy) return "••••••";
   return new Intl.NumberFormat("zh-CN", {
-    style: "currency", currency: data.currency, maximumFractionDigits: 0,
+    style: "currency", currency, maximumFractionDigits: 0,
     notation: compact ? "compact" : "standard"
   }).format(value);
 }
@@ -332,14 +347,18 @@ function renderPrices() {
     ? `${autoCount} 个价格可自动刷新${lastUpdated ? `，最近更新 ${dateTimeLabel(lastUpdated)}` : ""}。`
     : "添加 CoinGecko ID 或 Alpha Vantage 股票代码后即可自动刷新。";
   document.querySelector("#priceWatchList").innerHTML = watches.map(w => {
+    const quoteCurrency = w.quoteCurrency || w.currency || data.currency;
     const total = Number(w.quantity) * Number(w.price);
+    const convertedTotal = convertCurrency(total, quoteCurrency, data.currency);
     const source = priceSourceLabel(w);
     const change = Number(w.change24h) || 0;
     const holding = w.accountId ? "已关联持仓" : "未持仓";
+    const primaryValue = w.accountId ? money(convertedTotal) : moneyInCurrency(Number(w.price) || 0, quoteCurrency);
+    const subValue = w.accountId && quoteCurrency !== data.currency ? `${moneyInCurrency(total, quoteCurrency)} → ${money(convertedTotal)}` : (["coingecko", "alphavantage"].includes(w.source) ? `${change >= 0 ? "+" : ""}${change.toFixed(2)}%` : "手动");
     return `<button class="price-row" data-edit-price-watch="${w.id}">
       <span class="price-symbol">${escapeHtml((w.symbol || "?").slice(0, 4).toUpperCase())}</span>
       <span class="price-copy"><strong>${escapeHtml(w.name)}</strong><span>${source} · ${holding} · 数量 ${Number(w.quantity).toLocaleString("zh-CN")}</span></span>
-      <span class="price-value"><strong>${money(total)}</strong><span class="${change >= 0 ? "positive" : "negative"}">${["coingecko", "alphavantage"].includes(w.source) ? `${change >= 0 ? "+" : ""}${change.toFixed(2)}%` : money(w.price)}</span></span>
+      <span class="price-value"><strong>${primaryValue}</strong><span class="${change >= 0 ? "positive" : "negative"}">${subValue}</span></span>
     </button>`;
   }).join("") || `<div class="card"><p class="eyebrow">还没有价格追踪</p></div>`;
 }
@@ -350,6 +369,14 @@ function priceSourceLabel(w) {
 }
 function dateTimeLabel(value) {
   return new Intl.DateTimeFormat("zh-CN", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(value));
+}
+function convertCurrency(value, fromCurrency = data.currency, toCurrency = data.currency) {
+  if (fromCurrency === toCurrency) return Number(value) || 0;
+  const direct = marketConfig.fxRates?.[`${fromCurrency}_${toCurrency}`];
+  if (direct) return (Number(value) || 0) * Number(direct);
+  const reverse = marketConfig.fxRates?.[`${toCurrency}_${fromCurrency}`];
+  if (reverse) return (Number(value) || 0) / Number(reverse);
+  return Number(value) || 0;
 }
 function renderCloudUI() {
   const hasConfig = Boolean(cloud.config.url && cloud.config.anonKey);
@@ -377,7 +404,8 @@ function renderSecurityUI() {
 }
 function renderMarketUI() {
   document.querySelector("#alphaVantageKeyInput").value = marketConfig.alphaVantageKey || "";
-  document.querySelector("#marketStatus").textContent = marketConfig.alphaVantageKey ? "Alpha Vantage 已配置，可刷新股票/ETF/基金。" : "未配置 Alpha Vantage。";
+  const fx = marketConfig.fxRates?.USD_AUD ? `USD/AUD ${Number(marketConfig.fxRates.USD_AUD).toFixed(4)}` : "汇率待刷新";
+  document.querySelector("#marketStatus").textContent = marketConfig.alphaVantageKey ? `Alpha Vantage 已配置，${fx}。` : "未配置 Alpha Vantage。";
 }
 function renderEncryptionUI() {
   const status = document.querySelector("#encryptionStatus");
@@ -444,14 +472,17 @@ function openEditor(type, id = null) {
   }
   if (type === "priceWatch") {
     data.priceWatch = data.priceWatch || [];
-    const item = data.priceWatch.find(w => w.id === id) || { accountId:"", name:"", symbol:"", source:"manual", coingeckoId:"", quantity:"", price:"", currency:data.currency, change24h:0, updatedAt:"" };
+    const item = data.priceWatch.find(w => w.id === id) || { accountId:"", name:"", symbol:"", source:"alphavantage", coingeckoId:"", quantity:"", price:"", currency:"USD", quoteCurrency:"USD", change24h:0, updatedAt:"" };
     const accountOptions = [`<option value="">不关联账户</option>`].concat(data.accounts.filter(a => a.kind === "asset").map(a => `<option value="${a.id}" ${item.accountId === a.id ? "selected":""}>${escapeHtml(a.name)}</option>`)).join("");
+    const symbolOptions = marketSymbols.map(([symbol, name]) => `<option value="${symbol}">${escapeHtml(name)}</option>`).join("");
     document.querySelector("#dialogTitle").textContent = id ? "编辑价格追踪" : "添加价格追踪";
-    fields.innerHTML = `${field("名称", "name", item.name, "text", "required")}${field("代码", "symbol", item.symbol, "text", "required")}
+    fields.innerHTML = `${field("名称", "name", item.name, "text", "required")}${field("代码", "symbol", item.symbol, "text", "required list='marketSymbolOptions' placeholder='输入或从列表选择，例如 AAPL / VAS.AX'")}<datalist id="marketSymbolOptions">${symbolOptions}</datalist>
+      <button type="button" class="secondary-button full-width" id="marketSymbolSearchButton">搜索代码建议</button><div class="symbol-results" id="marketSymbolResults"></div>
       <label class="field"><span>关联资产账户</span><select name="accountId">${accountOptions}</select></label>
       <label class="field"><span>价格来源</span><select name="source"><option value="manual" ${item.source === "manual" ? "selected":""}>手动价格</option><option value="coingecko" ${item.source === "coingecko" ? "selected":""}>CoinGecko Crypto</option><option value="alphavantage" ${item.source === "alphavantage" ? "selected":""}>Alpha Vantage 股票/ETF/基金</option></select></label>
+      <label class="field"><span>报价币种</span><select name="quoteCurrency"><option value="USD" ${(item.quoteCurrency || item.currency) === "USD" ? "selected":""}>USD 美元</option><option value="AUD" ${(item.quoteCurrency || item.currency) === "AUD" ? "selected":""}>AUD 澳元</option><option value="CNY" ${(item.quoteCurrency || item.currency) === "CNY" ? "selected":""}>CNY 人民币</option></select></label>
       ${field("CoinGecko ID", "coingeckoId", item.coingeckoId || "", "text", "placeholder='Crypto 填 bitcoin / ethereum；股票可留空'")}
-      ${field("持仓数量", "quantity", item.quantity, "number", "min='0' step='any' required")}${field("当前单价", "price", item.price, "number", "min='0' step='any' required")}`;
+      ${field("持仓数量", "quantity", item.quantity, "number", "min='0' step='any' placeholder='未持仓可填 0'")}${field("当前单价", "price", item.price, "number", "min='0' step='any' placeholder='可空，刷新后自动填入'")}`;
   }
   dialog.showModal();
 }
@@ -727,6 +758,7 @@ async function importData(file) {
 async function refreshAllPrices() {
   try {
     await refreshCryptoPrices({ quiet: true });
+    await ensureNeededFxRates();
     await refreshAlphaVantagePrices({ quiet: true });
     await persistData("价格已刷新");
   } catch (error) {
@@ -753,6 +785,7 @@ async function refreshCryptoPrices({ quiet = false } = {}) {
         ...watch,
         price: Number(result[vs]),
         currency: data.currency,
+        quoteCurrency: data.currency,
         change24h: Number(result[`${vs}_24h_change`]) || 0,
         updatedAt: result.last_updated_at ? new Date(result.last_updated_at * 1000).toISOString() : new Date().toISOString()
       };
@@ -779,7 +812,8 @@ async function refreshAlphaVantagePrices({ quiet = false } = {}) {
         ...item,
         price: quote.price,
         change24h: quote.changePercent,
-        currency: item.currency || "USD",
+        currency: item.quoteCurrency || item.currency || "USD",
+        quoteCurrency: item.quoteCurrency || item.currency || "USD",
         updatedAt: new Date().toISOString()
       };
       updateLinkedAccountValue(updated);
@@ -800,6 +834,69 @@ async function fetchAlphaQuote(symbol, key) {
     price: Number(quote["05. price"]),
     changePercent: Number(String(quote["10. change percent"] || "0").replace("%", ""))
   };
+}
+async function searchMarketSymbols() {
+  const form = document.querySelector("#editorForm");
+  const keyword = form.querySelector("[name='symbol']").value.trim() || form.querySelector("[name='name']").value.trim();
+  const key = marketConfig.alphaVantageKey;
+  if (!keyword) return showToast("先输入名称或代码关键词");
+  if (!key) return showToast("请先配置 Alpha Vantage API Key");
+  const target = document.querySelector("#marketSymbolResults");
+  target.innerHTML = `<p class="cloud-diagnostic">正在搜索 ${escapeHtml(keyword)}...</p>`;
+  try {
+    const url = `https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords=${encodeURIComponent(keyword)}&apikey=${encodeURIComponent(key)}`;
+    const response = await fetch(url, { headers: { accept: "application/json" } });
+    if (!response.ok) throw new Error(`Alpha Vantage ${response.status}`);
+    const json = await response.json();
+    if (json.Note || json.Information) throw new Error(json.Note || json.Information);
+    const matches = (json.bestMatches || []).slice(0, 6);
+    target.innerHTML = matches.length ? matches.map(match => {
+      const symbol = match["1. symbol"] || "";
+      const name = match["2. name"] || "";
+      const region = match["4. region"] || "";
+      const currency = match["8. currency"] || "USD";
+      return `<button type="button" class="symbol-result" data-symbol="${escapeHtml(symbol)}" data-name="${escapeHtml(name)}" data-currency="${escapeHtml(currency)}"><strong>${escapeHtml(symbol)}</strong><span>${escapeHtml(name)} · ${escapeHtml(region)} · ${escapeHtml(currency)}</span></button>`;
+    }).join("") : `<p class="cloud-diagnostic">没有找到匹配代码。</p>`;
+  } catch (error) {
+    target.innerHTML = `<p class="cloud-diagnostic error">搜索失败：${escapeHtml(error.message || error)}</p>`;
+  }
+}
+function selectMarketSymbol(button) {
+  const form = document.querySelector("#editorForm");
+  form.querySelector("[name='symbol']").value = button.dataset.symbol || "";
+  form.querySelector("[name='name']").value = button.dataset.name || button.dataset.symbol || "";
+  const currency = button.dataset.currency || "USD";
+  const currencySelect = form.querySelector("[name='quoteCurrency']");
+  if ([...currencySelect.options].some(option => option.value === currency)) currencySelect.value = currency;
+  showToast("已选择代码");
+}
+async function ensureNeededFxRates() {
+  const pairs = new Set();
+  (data.priceWatch || []).forEach(watch => {
+    if (!watch.accountId) return;
+    const from = watch.quoteCurrency || watch.currency || data.currency;
+    if (from !== data.currency) pairs.add(`${from}_${data.currency}`);
+  });
+  for (const pair of pairs) await ensureFxRate(pair);
+}
+async function ensureFxRate(pair) {
+  const [from, to] = pair.split("_");
+  const updated = marketConfig.fxUpdatedAt ? new Date(marketConfig.fxUpdatedAt).getTime() : 0;
+  const fresh = Date.now() - updated < 12 * 60 * 60 * 1000;
+  if (marketConfig.fxRates?.[pair] && fresh) return marketConfig.fxRates[pair];
+  const key = marketConfig.alphaVantageKey;
+  if (!key) throw new Error("请先配置 Alpha Vantage API Key");
+  const url = `https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=${encodeURIComponent(from)}&to_currency=${encodeURIComponent(to)}&apikey=${encodeURIComponent(key)}`;
+  const response = await fetch(url, { headers: { accept: "application/json" } });
+  if (!response.ok) throw new Error(`Alpha Vantage FX ${response.status}`);
+  const json = await response.json();
+  if (json.Note || json.Information) throw new Error(json.Note || json.Information);
+  const rate = Number(json["Realtime Currency Exchange Rate"]?.["5. Exchange Rate"]);
+  if (!rate) throw new Error(`没有找到 ${from}/${to} 汇率`);
+  marketConfig.fxRates = { ...(marketConfig.fxRates || {}), [pair]: rate, [`${to}_${from}`]: 1 / rate };
+  marketConfig.fxUpdatedAt = new Date().toISOString();
+  saveMarketConfig(marketConfig);
+  return rate;
 }
 function setLoginMessage(text) {
   document.querySelector("#loginSubtitle").textContent = text;
@@ -1017,7 +1114,8 @@ function mergeById(localRows, remoteRows) {
 }
 function updateLinkedAccountValue(watch) {
   if (!watch.accountId) return;
-  const value = Number(watch.quantity) * Number(watch.price);
+  const quoteCurrency = watch.quoteCurrency || watch.currency || data.currency;
+  const value = convertCurrency(Number(watch.quantity) * Number(watch.price), quoteCurrency, data.currency);
   data.accounts = data.accounts.map(account => account.id === watch.accountId ? {
     ...account,
     value,
@@ -1045,6 +1143,9 @@ function throwIfErrorSync(result) {
 }
 
 document.addEventListener("click", e => {
+  if (e.target.closest("#marketSymbolSearchButton")) searchMarketSymbols();
+  const symbolButton = e.target.closest("[data-symbol]");
+  if (symbolButton) selectMarketSymbol(symbolButton);
   const nav = e.target.closest("[data-page], [data-target-page]");
   if (nav) switchPage(nav.dataset.page || nav.dataset.targetPage);
   const action = e.target.closest("[data-action]")?.dataset.action;
@@ -1125,10 +1226,11 @@ document.querySelector("#editorForm").onsubmit = async e => {
     };
   }
   if (type === "priceWatch") {
-    values.quantity = Number(values.quantity);
-    values.price = Number(values.price);
+    values.quantity = Number(values.quantity) || 0;
+    values.price = Number(values.price) || 0;
     values.change24h = Number(values.change24h) || 0;
-    values.currency = data.currency;
+    values.quoteCurrency = values.quoteCurrency || values.currency || data.currency;
+    values.currency = values.quoteCurrency;
     values.updatedAt = new Date().toISOString();
     values.id = id || uid("w");
     data.priceWatch = data.priceWatch || [];
@@ -1188,7 +1290,7 @@ document.querySelector("#exportDataButton").onclick = exportData;
 document.querySelector("#importDataInput").onchange = e => importData(e.target.files[0]);
 document.querySelector("#saveMarketConfigButton").onclick = () => {
   const alphaVantageKey = document.querySelector("#alphaVantageKeyInput").value.trim();
-  saveMarketConfig({ alphaVantageKey });
+  saveMarketConfig({ ...marketConfig, alphaVantageKey });
   renderMarketUI();
   showToast("行情设置已保存");
 };
