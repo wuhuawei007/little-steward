@@ -168,7 +168,7 @@
             <h2>价格追踪</h2>
             <p id="priceSummary">管理股票、基金和 Crypto 的持仓价格。</p>
           </div>
-          <button class="primary-button" id="refreshPricesButton">刷新 Crypto</button>
+          <button class="primary-button" id="refreshPricesButton">刷新价格</button>
         </article>
         <div class="section-heading">
           <div>
@@ -221,7 +221,7 @@
         <h3>设置</h3>
         <button class="text-button" id="closeSettings">完成</button>
       </div>
-      <p class="app-version">版本：2026.06.17 加密 Vault + 价格追踪</p>
+      <p class="app-version">版本：2026.06.17 股票行情 + 加密 Vault</p>
       <label class="field">
         <span>显示货币</span>
         <select id="currencySelect">
@@ -269,6 +269,17 @@
         </div>
         <button class="primary-button full-width" id="enableFaceIdButton">启用 Face ID 解锁</button>
         <button class="danger-button hidden" id="disableFaceIdButton">关闭 Face ID 解锁</button>
+      </div>
+      <div class="market-panel">
+        <div>
+          <strong>行情 API</strong>
+          <span id="marketStatus">Alpha Vantage 已配置</span>
+        </div>
+        <label class="field">
+          <span>Alpha Vantage API Key</span>
+          <input id="alphaVantageKeyInput" type="password" placeholder="Alpha Vantage free API key" autocomplete="off">
+        </label>
+        <button class="secondary-button full-width" id="saveMarketConfigButton">保存行情设置</button>
       </div>
       <div class="encryption-panel">
         <div>

@@ -2,6 +2,8 @@ const STORAGE_KEY = "little-steward-v1";
 const SUPABASE_CONFIG_KEY = "little-steward-supabase-config";
 const BIOMETRIC_KEY = "little-steward-biometric";
 const ENCRYPTION_KEY = "little-steward-encryption";
+const MARKET_CONFIG_KEY = "little-steward-market-config";
+const DEFAULT_ALPHA_VANTAGE_KEY = "SYC96IVAMPXH47F9";
 const colors = ["#4b73e8", "#ea8a3c", "#8671df", "#1f9d68", "#e2799c", "#575a63"];
 const icons = { property: "⌂", cash: "$", stock: "↗", fund: "F", crypto: "₿", loan: "−", other: "•" };
 const labels = { property: "房产", cash: "现金存款", stock: "股票", fund: "基金", crypto: "Crypto", loan: "贷款", other: "其他" };
@@ -46,8 +48,8 @@ const seedData = {
   ],
   priceWatch: [
     { id: "w1", accountId: "a6", name: "Bitcoin", symbol: "BTC", source: "coingecko", coingeckoId: "bitcoin", quantity: 0.32, price: 115000, currency: "AUD", change24h: 0, updatedAt: "" },
-    { id: "w2", accountId: "a4", name: "股票组合", symbol: "STOCKS", source: "manual", coingeckoId: "", quantity: 1, price: 128400, currency: "AUD", change24h: 0, updatedAt: "" },
-    { id: "w3", accountId: "a5", name: "基金", symbol: "FUNDS", source: "manual", coingeckoId: "", quantity: 1, price: 74200, currency: "AUD", change24h: 0, updatedAt: "" }
+    { id: "w2", accountId: "a4", name: "Apple", symbol: "AAPL", source: "alphavantage", coingeckoId: "", quantity: 20, price: 195, currency: "USD", change24h: 0, updatedAt: "" },
+    { id: "w3", accountId: "", name: "Vanguard ETF Watch", symbol: "VTI", source: "alphavantage", coingeckoId: "", quantity: 0, price: 300, currency: "USD", change24h: 0, updatedAt: "" }
   ]
 };
 
@@ -67,6 +69,7 @@ let localDataExists = Boolean(localStorage.getItem(STORAGE_KEY));
 let biometric = loadBiometricConfig();
 let encryption = loadEncryptionConfig();
 let vaultKey = null;
+let marketConfig = loadMarketConfig();
 
 function loadData() {
   try { return normalizeData(JSON.parse(localStorage.getItem(STORAGE_KEY)) || structuredClone(seedData)); }
@@ -110,6 +113,14 @@ function loadEncryptionConfig() {
 function saveEncryptionConfig(config) {
   encryption = config;
   localStorage.setItem(ENCRYPTION_KEY, JSON.stringify(config));
+}
+function loadMarketConfig() {
+  try { return JSON.parse(localStorage.getItem(MARKET_CONFIG_KEY)) || { alphaVantageKey: DEFAULT_ALPHA_VANTAGE_KEY }; }
+  catch { return { alphaVantageKey: DEFAULT_ALPHA_VANTAGE_KEY }; }
+}
+function saveMarketConfig(config) {
+  marketConfig = config;
+  localStorage.setItem(MARKET_CONFIG_KEY, JSON.stringify(config));
 }
 function saveSupabaseConfig(config) {
   cloud.config = config;
@@ -170,6 +181,7 @@ function render() {
   renderNotes();
   renderCloudUI();
   renderSecurityUI();
+  renderMarketUI();
   renderEncryptionUI();
 }
 
@@ -314,21 +326,27 @@ function renderLoanPlan() {
 }
 function renderPrices() {
   const watches = data.priceWatch || [];
-  const autoCount = watches.filter(w => w.source === "coingecko").length;
+  const autoCount = watches.filter(w => ["coingecko", "alphavantage"].includes(w.source)).length;
   const lastUpdated = watches.map(w => w.updatedAt).filter(Boolean).sort().pop();
   document.querySelector("#priceSummary").textContent = autoCount
-    ? `${autoCount} 个 Crypto 可自动刷新${lastUpdated ? `，最近更新 ${dateTimeLabel(lastUpdated)}` : ""}。`
-    : "添加 CoinGecko ID 后即可自动刷新 Crypto 价格。";
+    ? `${autoCount} 个价格可自动刷新${lastUpdated ? `，最近更新 ${dateTimeLabel(lastUpdated)}` : ""}。`
+    : "添加 CoinGecko ID 或 Alpha Vantage 股票代码后即可自动刷新。";
   document.querySelector("#priceWatchList").innerHTML = watches.map(w => {
     const total = Number(w.quantity) * Number(w.price);
-    const source = w.source === "coingecko" ? `CoinGecko: ${w.coingeckoId}` : "手动价格";
+    const source = priceSourceLabel(w);
     const change = Number(w.change24h) || 0;
+    const holding = w.accountId ? "已关联持仓" : "未持仓";
     return `<button class="price-row" data-edit-price-watch="${w.id}">
       <span class="price-symbol">${escapeHtml((w.symbol || "?").slice(0, 4).toUpperCase())}</span>
-      <span class="price-copy"><strong>${escapeHtml(w.name)}</strong><span>${source} · 数量 ${Number(w.quantity).toLocaleString("zh-CN")}</span></span>
-      <span class="price-value"><strong>${money(total)}</strong><span class="${change >= 0 ? "positive" : "negative"}">${w.source === "coingecko" ? `${change >= 0 ? "+" : ""}${change.toFixed(2)}%` : money(w.price)}</span></span>
+      <span class="price-copy"><strong>${escapeHtml(w.name)}</strong><span>${source} · ${holding} · 数量 ${Number(w.quantity).toLocaleString("zh-CN")}</span></span>
+      <span class="price-value"><strong>${money(total)}</strong><span class="${change >= 0 ? "positive" : "negative"}">${["coingecko", "alphavantage"].includes(w.source) ? `${change >= 0 ? "+" : ""}${change.toFixed(2)}%` : money(w.price)}</span></span>
     </button>`;
   }).join("") || `<div class="card"><p class="eyebrow">还没有价格追踪</p></div>`;
+}
+function priceSourceLabel(w) {
+  if (w.source === "coingecko") return `CoinGecko: ${w.coingeckoId}`;
+  if (w.source === "alphavantage") return `Alpha Vantage: ${w.symbol}`;
+  return "手动价格";
 }
 function dateTimeLabel(value) {
   return new Intl.DateTimeFormat("zh-CN", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(value));
@@ -356,6 +374,10 @@ function renderSecurityUI() {
   status.textContent = !supported ? "此浏览器不支持，或当前不是 HTTPS" : biometric.enabled ? "已启用。下次打开会要求 Face ID/设备解锁。" : "未启用";
   document.querySelector("#enableFaceIdButton").classList.toggle("hidden", !supported || biometric.enabled);
   document.querySelector("#disableFaceIdButton").classList.toggle("hidden", !biometric.enabled);
+}
+function renderMarketUI() {
+  document.querySelector("#alphaVantageKeyInput").value = marketConfig.alphaVantageKey || "";
+  document.querySelector("#marketStatus").textContent = marketConfig.alphaVantageKey ? "Alpha Vantage 已配置，可刷新股票/ETF/基金。" : "未配置 Alpha Vantage。";
 }
 function renderEncryptionUI() {
   const status = document.querySelector("#encryptionStatus");
@@ -427,8 +449,8 @@ function openEditor(type, id = null) {
     document.querySelector("#dialogTitle").textContent = id ? "编辑价格追踪" : "添加价格追踪";
     fields.innerHTML = `${field("名称", "name", item.name, "text", "required")}${field("代码", "symbol", item.symbol, "text", "required")}
       <label class="field"><span>关联资产账户</span><select name="accountId">${accountOptions}</select></label>
-      <label class="field"><span>价格来源</span><select name="source"><option value="manual" ${item.source === "manual" ? "selected":""}>手动价格</option><option value="coingecko" ${item.source === "coingecko" ? "selected":""}>CoinGecko Crypto</option></select></label>
-      ${field("CoinGecko ID", "coingeckoId", item.coingeckoId || "", "text", "placeholder='例如 bitcoin, ethereum, solana'")}
+      <label class="field"><span>价格来源</span><select name="source"><option value="manual" ${item.source === "manual" ? "selected":""}>手动价格</option><option value="coingecko" ${item.source === "coingecko" ? "selected":""}>CoinGecko Crypto</option><option value="alphavantage" ${item.source === "alphavantage" ? "selected":""}>Alpha Vantage 股票/ETF/基金</option></select></label>
+      ${field("CoinGecko ID", "coingeckoId", item.coingeckoId || "", "text", "placeholder='Crypto 填 bitcoin / ethereum；股票可留空'")}
       ${field("持仓数量", "quantity", item.quantity, "number", "min='0' step='any' required")}${field("当前单价", "price", item.price, "number", "min='0' step='any' required")}`;
   }
   dialog.showModal();
@@ -702,14 +724,23 @@ async function importData(file) {
     document.querySelector("#importDataInput").value = "";
   }
 }
-async function refreshCryptoPrices() {
+async function refreshAllPrices() {
+  try {
+    await refreshCryptoPrices({ quiet: true });
+    await refreshAlphaVantagePrices({ quiet: true });
+    await persistData("价格已刷新");
+  } catch (error) {
+    showToast(`价格刷新失败：${error.message || error}`);
+  }
+}
+async function refreshCryptoPrices({ quiet = false } = {}) {
   const cryptoWatches = (data.priceWatch || []).filter(w => w.source === "coingecko" && w.coingeckoId);
-  if (!cryptoWatches.length) return showToast("没有可刷新的 Crypto 条目");
+  if (!cryptoWatches.length) return;
   const vs = data.currency.toLowerCase();
   const ids = [...new Set(cryptoWatches.map(w => w.coingeckoId.trim().toLowerCase()))].join(",");
   const url = `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(ids)}&vs_currencies=${encodeURIComponent(vs)}&include_24hr_change=true&include_last_updated_at=true`;
   try {
-    showToast("正在刷新 Crypto 价格...");
+    if (!quiet) showToast("正在刷新 Crypto 价格...");
     const response = await fetch(url, { headers: { accept: "application/json" } });
     if (!response.ok) throw new Error(`CoinGecko ${response.status}`);
     const prices = await response.json();
@@ -728,10 +759,47 @@ async function refreshCryptoPrices() {
       updateLinkedAccountValue(updated);
       return updated;
     });
-    await persistData("Crypto 价格已刷新");
+    if (!quiet) await persistData("Crypto 价格已刷新");
   } catch (error) {
     showToast(`刷新失败：${error.message || error}`);
   }
+}
+async function refreshAlphaVantagePrices({ quiet = false } = {}) {
+  const key = marketConfig.alphaVantageKey;
+  const stockWatches = (data.priceWatch || []).filter(w => w.source === "alphavantage" && w.symbol);
+  if (!stockWatches.length) return;
+  if (!key) throw new Error("请先配置 Alpha Vantage API Key");
+  if (!quiet) showToast("正在刷新股票/ETF/基金价格...");
+  for (const watch of stockWatches) {
+    const quote = await fetchAlphaQuote(watch.symbol, key);
+    if (!quote) continue;
+    data.priceWatch = data.priceWatch.map(item => {
+      if (item.id !== watch.id) return item;
+      const updated = {
+        ...item,
+        price: quote.price,
+        change24h: quote.changePercent,
+        currency: item.currency || "USD",
+        updatedAt: new Date().toISOString()
+      };
+      updateLinkedAccountValue(updated);
+      return updated;
+    });
+  }
+  if (!quiet) await persistData("股票/ETF/基金价格已刷新");
+}
+async function fetchAlphaQuote(symbol, key) {
+  const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${encodeURIComponent(symbol.trim().toUpperCase())}&apikey=${encodeURIComponent(key)}`;
+  const response = await fetch(url, { headers: { accept: "application/json" } });
+  if (!response.ok) throw new Error(`Alpha Vantage ${response.status}`);
+  const json = await response.json();
+  if (json.Note || json.Information) throw new Error(json.Note || json.Information);
+  const quote = json["Global Quote"];
+  if (!quote || !quote["05. price"]) throw new Error(`没有找到 ${symbol} 的报价`);
+  return {
+    price: Number(quote["05. price"]),
+    changePercent: Number(String(quote["10. change percent"] || "0").replace("%", ""))
+  };
 }
 function setLoginMessage(text) {
   document.querySelector("#loginSubtitle").textContent = text;
@@ -1110,7 +1178,7 @@ document.querySelector("#testSupabaseConnection").onclick = testSupabaseConnecti
 document.querySelector("#signOutButton").onclick = signOut;
 document.querySelector("#syncNowButton").onclick = () => syncToCloud();
 document.querySelector("#pullCloudButton").onclick = () => pullFromCloud();
-document.querySelector("#refreshPricesButton").onclick = refreshCryptoPrices;
+document.querySelector("#refreshPricesButton").onclick = refreshAllPrices;
 document.querySelector("#enableFaceIdButton").onclick = enableFaceIdUnlock;
 document.querySelector("#disableFaceIdButton").onclick = disableFaceIdUnlock;
 document.querySelector("#enableEncryptionButton").onclick = enableEncryption;
@@ -1118,6 +1186,12 @@ document.querySelector("#unlockEncryptionButton").onclick = unlockEncryption;
 document.querySelector("#disableEncryptionButton").onclick = disableEncryption;
 document.querySelector("#exportDataButton").onclick = exportData;
 document.querySelector("#importDataInput").onchange = e => importData(e.target.files[0]);
+document.querySelector("#saveMarketConfigButton").onclick = () => {
+  const alphaVantageKey = document.querySelector("#alphaVantageKeyInput").value.trim();
+  saveMarketConfig({ alphaVantageKey });
+  renderMarketUI();
+  showToast("行情设置已保存");
+};
 document.querySelector("#faceUnlockButton").onclick = unlockWithFaceId;
 document.querySelector("#enterAppButton").onclick = hideLoginScreen;
 document.querySelector("#loginSettingsButton").onclick = () => {

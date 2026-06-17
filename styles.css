@@ -221,6 +221,9 @@ dialog[open] { animation: sheetUp .25s ease both; }
 .security-panel div { display: grid; gap: 4px; }
 .security-panel span { color: var(--muted); font-size: 11px; line-height: 1.45; }
 .security-panel .danger-button { margin-top: 0; }
+.market-panel { display: grid; gap: 12px; margin-top: 14px; padding: 15px; border-radius: 20px; background: white; }
+.market-panel div { display: grid; gap: 4px; }
+.market-panel span { color: var(--muted); font-size: 11px; line-height: 1.45; }
 .encryption-panel { display: grid; gap: 12px; margin-top: 14px; padding: 15px; border-radius: 20px; background: white; }
 .encryption-panel div { display: grid; gap: 4px; }
 .encryption-panel span { color: var(--muted); font-size: 11px; line-height: 1.45; }
