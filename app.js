@@ -1,4 +1,5 @@
 const STORAGE_KEY = "little-steward-v1";
+const SUPABASE_CONFIG_KEY = "little-steward-supabase-config";
 const colors = ["#4b73e8", "#ea8a3c", "#8671df", "#1f9d68", "#e2799c", "#575a63"];
 const icons = { property: "⌂", cash: "$", stock: "↗", fund: "F", crypto: "₿", loan: "−", other: "•" };
 const labels = { property: "房产", cash: "现金存款", stock: "股票", fund: "基金", crypto: "Crypto", loan: "贷款", other: "其他" };
@@ -34,13 +35,34 @@ let data = loadData();
 let privacy = false;
 let activeFilter = "all";
 let editorState = null;
+let cloud = {
+  client: null,
+  session: null,
+  syncing: false,
+  config: loadSupabaseConfig()
+};
+let localDataExists = Boolean(localStorage.getItem(STORAGE_KEY));
 
 function loadData() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || structuredClone(seedData); }
   catch { return structuredClone(seedData); }
 }
-function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
-function uid(prefix) { return prefix + Date.now().toString(36); }
+function saveLocalData() {
+  localDataExists = true;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+function loadSupabaseConfig() {
+  try { return JSON.parse(localStorage.getItem(SUPABASE_CONFIG_KEY)) || { url: "", anonKey: "" }; }
+  catch { return { url: "", anonKey: "" }; }
+}
+function saveSupabaseConfig(config) {
+  cloud.config = config;
+  localStorage.setItem(SUPABASE_CONFIG_KEY, JSON.stringify(config));
+}
+function uid(prefix) {
+  const random = Math.random().toString(36).slice(2, 8);
+  return `${prefix}${Date.now().toString(36)}${random}`;
+}
 function money(value, compact = false) {
   if (privacy) return "••••••";
   return new Intl.NumberFormat("zh-CN", {
@@ -61,8 +83,13 @@ function monthLabel(month) {
 }
 function showToast(text) {
   const el = document.querySelector("#toast");
-  el.textContent = text; el.classList.add("show");
-  clearTimeout(showToast.timer); showToast.timer = setTimeout(() => el.classList.remove("show"), 1800);
+  el.textContent = text;
+  el.classList.add("show");
+  clearTimeout(showToast.timer);
+  showToast.timer = setTimeout(() => el.classList.remove("show"), 1800);
+}
+function escapeHtml(str = "") {
+  return String(str).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;" }[c]));
 }
 
 function render() {
@@ -82,6 +109,7 @@ function render() {
   renderAccounts();
   renderSavings();
   renderNotes();
+  renderCloudUI();
 }
 
 function renderAllocation() {
@@ -90,7 +118,8 @@ function renderAllocation() {
   const total = grouped.reduce((s, [,v]) => s + v, 0) || 1;
   let cursor = 0;
   const stops = grouped.map(([type, value], i) => {
-    const start = cursor; cursor += value / total * 100;
+    const start = cursor;
+    cursor += value / total * 100;
     return `${colors[i % colors.length]} ${start}% ${cursor}%`;
   });
   document.querySelector("#allocationDonut").style.background = `conic-gradient(${stops.join(",") || "#ddd 0 100%"})`;
@@ -133,8 +162,20 @@ function renderNotes() {
     <button class="note-card" data-edit-note="${n.id}"><span>${dateLabel(n.date)}</span><h3>${escapeHtml(n.title)}</h3><p>${escapeHtml(n.body)}</p></button>
   `).join("") || `<div class="note-card"><h3>还没有 Notes</h3><p>记下你的第一个财务决定。</p></div>`;
 }
+function renderCloudUI() {
+  const hasConfig = Boolean(cloud.config.url && cloud.config.anonKey);
+  const email = cloud.session?.user?.email;
+  const status = document.querySelector("#cloudStatus");
+  document.querySelector("#supabaseUrlInput").value = cloud.config.url || "";
+  document.querySelector("#supabaseAnonInput").value = cloud.config.anonKey || "";
+  document.querySelector("#authBox").classList.toggle("hidden", !hasConfig || Boolean(email));
+  document.querySelector("#signedInBox").classList.toggle("hidden", !email);
+  document.querySelector("#syncNowButton").disabled = !email || cloud.syncing;
+  document.querySelector("#pullCloudButton").disabled = !email || cloud.syncing;
+  document.querySelector("#signedInText").textContent = email ? `已登录：${email}` : "";
+  status.textContent = !hasConfig ? "未配置" : email ? (cloud.syncing ? "正在同步..." : "已登录并可同步") : "已配置，等待登录";
+}
 
-function escapeHtml(str = "") { return str.replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;" }[c])); }
 function field(label, name, value = "", type = "text", extra = "") {
   return `<label class="field"><span>${label}</span><input name="${name}" type="${type}" value="${escapeHtml(String(value))}" ${extra}></label>`;
 }
@@ -162,6 +203,178 @@ function openEditor(type, id = null) {
     fields.innerHTML = `${field("标题", "title", item.title, "text", "required")}<label class="field"><span>内容</span><textarea name="body" required>${escapeHtml(item.body)}</textarea></label>${field("日期", "date", item.date, "date", "required")}`;
   }
   dialog.showModal();
+}
+
+async function persistData(message = "已保存") {
+  saveLocalData();
+  render();
+  if (cloud.session) await syncToCloud({ quiet: true });
+  showToast(message);
+}
+function ensureSupabaseClient() {
+  if (!cloud.config.url || !cloud.config.anonKey || !window.supabase?.createClient) return null;
+  if (!cloud.client) {
+    cloud.client = window.supabase.createClient(cloud.config.url, cloud.config.anonKey, {
+      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+    });
+    cloud.client.auth.onAuthStateChange(async (_event, session) => {
+      cloud.session = session;
+      renderCloudUI();
+      if (session) await reconcileCloudOnLogin();
+    });
+  }
+  return cloud.client;
+}
+async function initCloud() {
+  const client = ensureSupabaseClient();
+  if (!client) {
+    renderCloudUI();
+    return;
+  }
+  const { data: sessionData } = await client.auth.getSession();
+  cloud.session = sessionData.session;
+  renderCloudUI();
+  if (cloud.session) await reconcileCloudOnLogin();
+}
+async function signInWithEmail() {
+  const client = ensureSupabaseClient();
+  const email = document.querySelector("#authEmailInput").value.trim();
+  if (!client) return showToast("请先保存 Supabase 配置");
+  if (!email) return showToast("请输入邮箱");
+  const { error } = await client.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: location.origin + location.pathname }
+  });
+  if (error) return showToast(error.message);
+  showToast("登录链接已发送，请查看邮箱");
+}
+async function signOut() {
+  if (!cloud.client) return;
+  await cloud.client.auth.signOut();
+  cloud.session = null;
+  renderCloudUI();
+  showToast("已退出登录");
+}
+function withUserId(rows) {
+  const userId = cloud.session.user.id;
+  return rows.map(row => ({ ...row, user_id: userId, updated_at: new Date().toISOString() }));
+}
+async function reconcileCloudOnLogin() {
+  try {
+    const remote = await fetchCloudData();
+    if (!remote) return;
+    const hasRemote = remote.accounts.length || remote.savings.length || remote.notes.length;
+    if (!hasRemote) {
+      await syncToCloud({ quiet: true });
+    } else if (localDataExists) {
+      data = {
+        currency: remote.currency || data.currency,
+        accounts: mergeById(data.accounts, remote.accounts),
+        savings: mergeById(data.savings, remote.savings),
+        notes: mergeById(data.notes, remote.notes)
+      };
+      saveLocalData();
+      render();
+      await syncToCloud({ quiet: true });
+    } else {
+      data = remote;
+      saveLocalData();
+      render();
+    }
+  } catch (error) {
+    showToast(`云同步初始化失败：${error.message}`);
+  }
+}
+async function syncToCloud({ quiet = false } = {}) {
+  const client = ensureSupabaseClient();
+  if (!client || !cloud.session || cloud.syncing) return;
+  cloud.syncing = true;
+  renderCloudUI();
+  try {
+    const userId = cloud.session.user.id;
+    const accounts = withUserId(data.accounts.map(a => ({ ...a, value: Number(a.value) || 0 })));
+    const savings = withUserId(data.savings.map(s => ({ ...s, amount: Number(s.amount) || 0 })));
+    const notes = withUserId(data.notes);
+    const settings = { user_id: userId, currency: data.currency, updated_at: new Date().toISOString() };
+    if (accounts.length) await throwIfError(client.from("little_steward_accounts").upsert(accounts));
+    if (savings.length) await throwIfError(client.from("little_steward_savings").upsert(savings));
+    if (notes.length) await throwIfError(client.from("little_steward_notes").upsert(notes));
+    await throwIfError(client.from("little_steward_settings").upsert(settings));
+    if (!quiet) showToast("已同步到云端");
+  } catch (error) {
+    showToast(`同步失败：${error.message}`);
+  } finally {
+    cloud.syncing = false;
+    renderCloudUI();
+  }
+}
+async function fetchCloudData() {
+  const client = ensureSupabaseClient();
+  if (!client || !cloud.session) return null;
+  const [accountsRes, savingsRes, notesRes, settingsRes] = await Promise.all([
+    client.from("little_steward_accounts").select("id,name,type,kind,value,note,updated"),
+    client.from("little_steward_savings").select("id,month,amount,note"),
+    client.from("little_steward_notes").select("id,title,body,date"),
+    client.from("little_steward_settings").select("currency").maybeSingle()
+  ]);
+  [accountsRes, savingsRes, notesRes, settingsRes].forEach(throwIfErrorSync);
+  return {
+    currency: settingsRes.data?.currency || data.currency,
+    accounts: accountsRes.data || [],
+    savings: savingsRes.data || [],
+    notes: notesRes.data || []
+  };
+}
+async function pullFromCloud({ quiet = false, merge = false } = {}) {
+  if (cloud.syncing) return;
+  cloud.syncing = true;
+  renderCloudUI();
+  try {
+    const remote = await fetchCloudData();
+    if (!remote) return;
+    if (merge) {
+      data = {
+        currency: remote.currency,
+        accounts: mergeById(data.accounts, remote.accounts),
+        savings: mergeById(data.savings, remote.savings),
+        notes: mergeById(data.notes, remote.notes)
+      };
+    } else {
+      data = remote;
+    }
+    saveLocalData();
+    render();
+    if (!quiet) showToast("已从云端恢复");
+  } catch (error) {
+    showToast(`恢复失败：${error.message}`);
+  } finally {
+    cloud.syncing = false;
+    renderCloudUI();
+  }
+}
+function mergeById(localRows, remoteRows) {
+  const map = new Map();
+  [...localRows, ...remoteRows].forEach(row => map.set(row.id, { ...map.get(row.id), ...row }));
+  return Array.from(map.values());
+}
+async function deleteFromCloud(type, id) {
+  const client = ensureSupabaseClient();
+  if (!client || !cloud.session) return;
+  const table = {
+    account: "little_steward_accounts",
+    saving: "little_steward_savings",
+    note: "little_steward_notes"
+  }[type];
+  if (!table) return;
+  await throwIfError(client.from(table).delete().eq("id", id));
+}
+async function throwIfError(request) {
+  const result = await request;
+  if (result.error) throw result.error;
+  return result;
+}
+function throwIfErrorSync(result) {
+  if (result.error) throw result.error;
 }
 
 document.addEventListener("click", e => {
@@ -192,34 +405,62 @@ document.querySelector("#assetSegment").addEventListener("click", e => {
 });
 document.querySelector("#togglePrivacy").onclick = () => { privacy = !privacy; render(); };
 document.querySelector("#cancelDialog").onclick = () => document.querySelector("#editorDialog").close();
-document.querySelector("#editorForm").onsubmit = e => {
+document.querySelector("#editorForm").onsubmit = async e => {
   e.preventDefault();
   const values = Object.fromEntries(new FormData(e.currentTarget));
   const { type, id } = editorState;
   if (type === "account") {
-    values.value = Number(values.value); values.id = id || uid("a");
+    values.value = Number(values.value);
+    values.id = id || uid("a");
     data.accounts = id ? data.accounts.map(x => x.id === id ? values : x) : [...data.accounts, values];
   } else if (type === "saving") {
-    values.amount = Number(values.amount); values.id = id || uid("s");
+    values.amount = Number(values.amount);
+    values.id = id || uid("s");
     data.savings = id ? data.savings.map(x => x.id === id ? values : x) : [...data.savings, values];
   } else {
     values.id = id || uid("n");
     data.notes = id ? data.notes.map(x => x.id === id ? values : x) : [...data.notes, values];
   }
-  saveData(); render(); document.querySelector("#editorDialog").close(); showToast("已保存");
+  document.querySelector("#editorDialog").close();
+  await persistData("已保存");
 };
-document.querySelector("#deleteButton").onclick = () => {
+document.querySelector("#deleteButton").onclick = async () => {
   const { type, id } = editorState;
   if (type === "account") data.accounts = data.accounts.filter(x => x.id !== id);
   if (type === "saving") data.savings = data.savings.filter(x => x.id !== id);
   if (type === "note") data.notes = data.notes.filter(x => x.id !== id);
-  saveData(); render(); document.querySelector("#editorDialog").close(); showToast("已删除");
+  document.querySelector("#editorDialog").close();
+  try { await deleteFromCloud(type, id); }
+  catch (error) { showToast(`云端删除失败：${error.message}`); }
+  await persistData("已删除");
 };
 document.querySelector("#settingsButton").onclick = () => document.querySelector("#settingsDialog").showModal();
 document.querySelector("#closeSettings").onclick = () => document.querySelector("#settingsDialog").close();
-document.querySelector("#currencySelect").onchange = e => { data.currency = e.target.value; saveData(); render(); };
-document.querySelector("#resetData").onclick = () => { data = structuredClone(seedData); saveData(); render(); document.querySelector("#settingsDialog").close(); showToast("已恢复示例数据"); };
+document.querySelector("#currencySelect").onchange = async e => {
+  data.currency = e.target.value;
+  await persistData("货币已更新");
+};
+document.querySelector("#resetData").onclick = async () => {
+  data = structuredClone(seedData);
+  document.querySelector("#settingsDialog").close();
+  await persistData("已恢复示例数据");
+};
+document.querySelector("#saveSupabaseConfig").onclick = async () => {
+  const url = document.querySelector("#supabaseUrlInput").value.trim().replace(/\/$/, "");
+  const anonKey = document.querySelector("#supabaseAnonInput").value.trim();
+  if (!url || !anonKey) return showToast("请填写 URL 和 anon public key");
+  saveSupabaseConfig({ url, anonKey });
+  cloud.client = null;
+  await initCloud();
+  showToast("Supabase 配置已保存");
+};
+document.querySelector("#sendLoginLink").onclick = signInWithEmail;
+document.querySelector("#signOutButton").onclick = signOut;
+document.querySelector("#syncNowButton").onclick = () => syncToCloud();
+document.querySelector("#pullCloudButton").onclick = () => pullFromCloud();
+
 document.querySelector("#todayLabel").textContent = new Intl.DateTimeFormat("zh-CN", { month:"long", day:"numeric", weekday:"long" }).format(new Date());
 document.querySelector("#currencySelect").value = data.currency;
 render();
+initCloud();
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js").catch(() => {});

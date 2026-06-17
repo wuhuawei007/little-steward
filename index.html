@@ -10,6 +10,7 @@
   <title>小管家 · 资产与储蓄</title>
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
   <div class="app-shell">
@@ -146,6 +147,36 @@
           <option value="USD">美元 USD</option>
         </select>
       </label>
+      <div class="cloud-panel">
+        <div class="cloud-header">
+          <div>
+            <strong>Supabase 云同步</strong>
+            <span id="cloudStatus">未配置</span>
+          </div>
+          <button class="text-button" id="syncNowButton">同步</button>
+        </div>
+        <label class="field">
+          <span>Project URL</span>
+          <input id="supabaseUrlInput" type="url" placeholder="https://xxxx.supabase.co" autocomplete="off">
+        </label>
+        <label class="field">
+          <span>Anon public key</span>
+          <textarea id="supabaseAnonInput" placeholder="只粘贴 anon public key，不要粘贴 service_role key"></textarea>
+        </label>
+        <button class="primary-button full-width" id="saveSupabaseConfig">保存 Supabase 配置</button>
+        <div class="auth-box" id="authBox">
+          <label class="field">
+            <span>登录邮箱</span>
+            <input id="authEmailInput" type="email" placeholder="you@example.com" autocomplete="email">
+          </label>
+          <button class="primary-button full-width" id="sendLoginLink">发送登录链接</button>
+        </div>
+        <div class="auth-box hidden" id="signedInBox">
+          <p id="signedInText"></p>
+          <button class="primary-button full-width" id="pullCloudButton">从云端恢复到本机</button>
+          <button class="danger-button" id="signOutButton">退出登录</button>
+        </div>
+      </div>
       <div class="settings-row">
         <div><strong>本地保存</strong><span>数据仅保存在这台设备</span></div>
         <span class="status-dot"></span>
