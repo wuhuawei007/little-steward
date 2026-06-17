@@ -29,6 +29,19 @@ const seedData = {
     { id: "n1", title: "六月计划", body: "月底更新房产估值，复盘股票配置，并保持紧急备用金至少覆盖 6 个月支出。", date: "2026-06-15" },
     { id: "n2", title: "投资原则", body: "不追逐短期波动。每次新增投资前，先确认长期逻辑和最大可接受亏损。", date: "2026-06-08" },
     { id: "n3", title: "贷款提醒", body: "8 月前比较一次投资房贷款利率。", date: "2026-05-28" }
+  ],
+  goals: [
+    { id: "g1", name: "净资产目标", target: 1000000, currentType: "netWorth", due: "2027-12", note: "先达成第一个百万净资产里程碑。" },
+    { id: "g2", name: "现金安全垫", target: 100000, currentType: "cash", due: "2026-12", note: "覆盖 6-9 个月生活支出。" }
+  ],
+  budget: { monthlyIncome: 14000, fixedExpense: 5200, flexExpense: 2600, savingTarget: 4500 },
+  loanPlan: { principal: 900000, annualRate: 6.1, monthlyRepayment: 5600, offsetBalance: 86500 },
+  snapshots: [
+    { id: "p1", month: "2026-01", assets: 1820000, liabilities: 930000 },
+    { id: "p2", month: "2026-02", assets: 1845000, liabilities: 925000 },
+    { id: "p3", month: "2026-03", assets: 1870000, liabilities: 918000 },
+    { id: "p4", month: "2026-04", assets: 1905000, liabilities: 910000 },
+    { id: "p5", month: "2026-05", assets: 1923900, liabilities: 900000 }
   ]
 };
 
@@ -48,8 +61,22 @@ let localDataExists = Boolean(localStorage.getItem(STORAGE_KEY));
 let biometric = loadBiometricConfig();
 
 function loadData() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || structuredClone(seedData); }
+  try { return normalizeData(JSON.parse(localStorage.getItem(STORAGE_KEY)) || structuredClone(seedData)); }
   catch { return structuredClone(seedData); }
+}
+function normalizeData(raw) {
+  const defaults = structuredClone(seedData);
+  return {
+    ...defaults,
+    ...raw,
+    accounts: raw.accounts || defaults.accounts,
+    savings: raw.savings || defaults.savings,
+    notes: raw.notes || defaults.notes,
+    goals: raw.goals || defaults.goals,
+    budget: { ...defaults.budget, ...(raw.budget || {}) },
+    loanPlan: { ...defaults.loanPlan, ...(raw.loanPlan || {}) },
+    snapshots: raw.snapshots || defaults.snapshots
+  };
 }
 function saveLocalData() {
   localDataExists = true;
@@ -121,6 +148,7 @@ function render() {
   renderInsights(t);
   renderAccounts();
   renderSavings();
+  renderPlanning();
   renderNotes();
   renderCloudUI();
   renderSecurityUI();
@@ -195,6 +223,76 @@ function renderNotes() {
     <button class="note-card" data-edit-note="${n.id}"><span>${dateLabel(n.date)}</span><h3>${escapeHtml(n.title)}</h3><p>${escapeHtml(n.body)}</p></button>
   `).join("") || `<div class="note-card"><h3>还没有 Notes</h3><p>记下你的第一个财务决定。</p></div>`;
 }
+function renderPlanning() {
+  renderTrend();
+  renderGoals();
+  renderBudget();
+  renderLoanPlan();
+}
+function renderTrend() {
+  const t = totals();
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  const rows = mergeById(data.snapshots || [], [{ id: "current", month: currentMonth, assets: t.assets, liabilities: t.liabilities }])
+    .sort((a, b) => a.month.localeCompare(b.month))
+    .slice(-6);
+  const nets = rows.map(row => Number(row.assets) - Number(row.liabilities));
+  const min = Math.min(...nets, 0);
+  const max = Math.max(...nets, 1);
+  document.querySelector("#trendChart").innerHTML = rows.map(row => {
+    const net = Number(row.assets) - Number(row.liabilities);
+    const height = max === min ? 60 : Math.max(12, ((net - min) / (max - min)) * 100);
+    return `<i class="trend-bar" style="height:${height}%" data-value="${money(net, true)}"></i>`;
+  }).join("");
+  document.querySelector("#trendLabels").innerHTML = rows.map(row => `<span>${row.month.slice(5)}</span>`).join("");
+}
+function currentForGoal(type) {
+  const t = totals();
+  if (type === "netWorth") return t.net;
+  if (type === "cash") return data.accounts.filter(a => a.kind === "asset" && a.type === "cash").reduce((s, a) => s + Number(a.value), 0);
+  if (type === "liquid") return data.accounts.filter(a => a.kind === "asset" && ["cash", "stock", "fund", "crypto"].includes(a.type)).reduce((s, a) => s + Number(a.value), 0);
+  return 0;
+}
+function renderGoals() {
+  document.querySelector("#goalList").innerHTML = (data.goals || []).map(goal => {
+    const current = currentForGoal(goal.currentType);
+    const pct = Math.max(0, Math.min(100, goal.target ? current / Number(goal.target) * 100 : 0));
+    return `<button class="goal-card" data-edit-goal="${goal.id}">
+      <span class="goal-top"><strong>${escapeHtml(goal.name)}</strong><span>${goal.due || "未设期限"}</span></span>
+      <span class="progress-track"><i style="width:${pct}%"></i></span>
+      <span class="goal-top"><span>${money(current)} / ${money(goal.target)}</span><span>${Math.round(pct)}%</span></span>
+    </button>`;
+  }).join("") || `<div class="card"><p class="eyebrow">还没有财富目标</p></div>`;
+}
+function renderBudget() {
+  const b = data.budget || {};
+  const income = Number(b.monthlyIncome) || 0;
+  const fixed = Number(b.fixedExpense) || 0;
+  const flex = Number(b.flexExpense) || 0;
+  const target = Number(b.savingTarget) || 0;
+  const free = income - fixed - flex;
+  const rate = income ? Math.round(target / income * 100) : 0;
+  document.querySelector("#budgetCard").innerHTML = `<div class="metric-grid">
+    <div class="metric-tile"><span>月收入</span><strong>${money(income)}</strong></div>
+    <div class="metric-tile"><span>目标储蓄率</span><strong>${rate}%</strong></div>
+    <div class="metric-tile"><span>固定支出</span><strong>${money(fixed)}</strong></div>
+    <div class="metric-tile"><span>可支配结余</span><strong>${money(free)}</strong></div>
+  </div>`;
+}
+function renderLoanPlan() {
+  const p = data.loanPlan || {};
+  const principal = Number(p.principal) || 0;
+  const rate = Number(p.annualRate) || 0;
+  const repayment = Number(p.monthlyRepayment) || 0;
+  const offset = Number(p.offsetBalance) || 0;
+  const monthlyInterest = Math.max(0, principal - offset) * rate / 100 / 12;
+  const principalPaydown = Math.max(0, repayment - monthlyInterest);
+  document.querySelector("#loanPlanCard").innerHTML = `<div class="metric-grid">
+    <div class="metric-tile"><span>贷款本金</span><strong>${money(principal)}</strong></div>
+    <div class="metric-tile"><span>年利率</span><strong>${rate.toFixed(2)}%</strong></div>
+    <div class="metric-tile"><span>估算月利息</span><strong>${money(monthlyInterest)}</strong></div>
+    <div class="metric-tile"><span>每月还本</span><strong>${money(principalPaydown)}</strong></div>
+  </div>`;
+}
 function renderCloudUI() {
   const hasConfig = Boolean(cloud.config.url && cloud.config.anonKey);
   const email = cloud.session?.user?.email;
@@ -241,10 +339,35 @@ function openEditor(type, id = null) {
     document.querySelector("#dialogTitle").textContent = id ? "编辑月末记录" : "记录月末余额";
     fields.innerHTML = `${field("月份", "month", item.month, "month", "required")}${field("储蓄与活期余额", "amount", item.amount, "number", "min='0' step='0.01' required")}
       <label class="field"><span>Notes</span><textarea name="note" placeholder="这个月发生了什么？">${escapeHtml(item.note)}</textarea></label>`;
-  } else {
+  } else if (type === "note") {
     const item = data.notes.find(n => n.id === id) || { title:"", body:"", date:new Date().toISOString().slice(0,10) };
     document.querySelector("#dialogTitle").textContent = id ? "编辑 Note" : "添加 Note";
     fields.innerHTML = `${field("标题", "title", item.title, "text", "required")}<label class="field"><span>内容</span><textarea name="body" required>${escapeHtml(item.body)}</textarea></label>${field("日期", "date", item.date, "date", "required")}`;
+  }
+  if (type === "goal") {
+    const item = data.goals.find(g => g.id === id) || { name:"", target:"", currentType:"netWorth", due:new Date().toISOString().slice(0,7), note:"" };
+    document.querySelector("#dialogTitle").textContent = id ? "编辑财富目标" : "添加财富目标";
+    fields.innerHTML = `${field("目标名称", "name", item.name, "text", "required")}${field("目标金额", "target", item.target, "number", "min='0' step='0.01' required")}
+      <label class="field"><span>跟踪指标</span><select name="currentType"><option value="netWorth" ${item.currentType === "netWorth" ? "selected":""}>净资产</option><option value="cash" ${item.currentType === "cash" ? "selected":""}>现金存款</option><option value="liquid" ${item.currentType === "liquid" ? "selected":""}>流动资产</option></select></label>
+      ${field("期限", "due", item.due, "month")}<label class="field"><span>备注</span><textarea name="note">${escapeHtml(item.note || "")}</textarea></label>`;
+  }
+  if (type === "snapshot") {
+    const t = totals();
+    const item = data.snapshots.find(s => s.id === id) || { month:new Date().toISOString().slice(0,7), assets:t.assets, liabilities:t.liabilities };
+    document.querySelector("#dialogTitle").textContent = id ? "编辑净资产快照" : "记录净资产快照";
+    fields.innerHTML = `${field("月份", "month", item.month, "month", "required")}${field("总资产", "assets", item.assets, "number", "min='0' step='0.01' required")}${field("总负债", "liabilities", item.liabilities, "number", "min='0' step='0.01' required")}`;
+  }
+  if (type === "budget") {
+    const item = data.budget;
+    deleteBtn.classList.add("hidden");
+    document.querySelector("#dialogTitle").textContent = "编辑每月预算";
+    fields.innerHTML = `${field("月收入", "monthlyIncome", item.monthlyIncome, "number", "min='0' step='0.01' required")}${field("固定支出", "fixedExpense", item.fixedExpense, "number", "min='0' step='0.01' required")}${field("自由支出", "flexExpense", item.flexExpense, "number", "min='0' step='0.01' required")}${field("目标储蓄", "savingTarget", item.savingTarget, "number", "min='0' step='0.01' required")}`;
+  }
+  if (type === "loanPlan") {
+    const item = data.loanPlan;
+    deleteBtn.classList.add("hidden");
+    document.querySelector("#dialogTitle").textContent = "编辑房贷测算";
+    fields.innerHTML = `${field("贷款本金", "principal", item.principal, "number", "min='0' step='0.01' required")}${field("年利率 %", "annualRate", item.annualRate, "number", "min='0' step='0.01' required")}${field("每月还款", "monthlyRepayment", item.monthlyRepayment, "number", "min='0' step='0.01' required")}${field("Offset / 对冲账户余额", "offsetBalance", item.offsetBalance, "number", "min='0' step='0.01' required")}`;
   }
   dialog.showModal();
 }
@@ -405,7 +528,7 @@ function exportData() {
     exportedAt: new Date().toISOString(),
     app: "little-steward",
     version: "2026.06.17",
-    data
+    data: normalizeData(data)
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -428,8 +551,13 @@ async function importData(file) {
       currency: imported.currency || "AUD",
       accounts: imported.accounts,
       savings: imported.savings,
-      notes: imported.notes
+      notes: imported.notes,
+      goals: imported.goals,
+      budget: imported.budget,
+      loanPlan: imported.loanPlan,
+      snapshots: imported.snapshots
     };
+    data = normalizeData(data);
     await persistData("备份已导入");
   } catch (error) {
     showToast(`导入失败：${error.message || error}`);
@@ -465,6 +593,23 @@ function withUserId(rows) {
   const userId = cloud.session.user.id;
   return rows.map(row => ({ ...row, user_id: userId, updated_at: new Date().toISOString() }));
 }
+function planPayload() {
+  return {
+    goals: data.goals || [],
+    budget: data.budget || seedData.budget,
+    loanPlan: data.loanPlan || seedData.loanPlan,
+    snapshots: data.snapshots || []
+  };
+}
+function applyPlanPayload(target, payload = {}) {
+  return normalizeData({
+    ...target,
+    goals: payload.goals || target.goals,
+    budget: payload.budget || target.budget,
+    loanPlan: payload.loanPlan || target.loanPlan,
+    snapshots: payload.snapshots || target.snapshots
+  });
+}
 async function reconcileCloudOnLogin() {
   try {
     const remote = await fetchCloudData();
@@ -477,8 +622,13 @@ async function reconcileCloudOnLogin() {
         currency: remote.currency || data.currency,
         accounts: mergeById(data.accounts, remote.accounts),
         savings: mergeById(data.savings, remote.savings),
-        notes: mergeById(data.notes, remote.notes)
+        notes: mergeById(data.notes, remote.notes),
+        goals: mergeById(data.goals, remote.goals || []),
+        budget: { ...data.budget, ...(remote.budget || {}) },
+        loanPlan: { ...data.loanPlan, ...(remote.loanPlan || {}) },
+        snapshots: mergeById(data.snapshots, remote.snapshots || [])
       };
+      data = normalizeData(data);
       saveLocalData();
       render();
       await syncToCloud({ quiet: true });
@@ -506,6 +656,7 @@ async function syncToCloud({ quiet = false } = {}) {
     if (savings.length) await throwIfError(client.from("little_steward_savings").upsert(savings));
     if (notes.length) await throwIfError(client.from("little_steward_notes").upsert(notes));
     await throwIfError(client.from("little_steward_settings").upsert(settings));
+    await syncPlansToCloud(client, userId);
     if (!quiet) showToast("已同步到云端");
   } catch (error) {
     showToast(`同步失败：${error.message}`);
@@ -524,12 +675,28 @@ async function fetchCloudData() {
     client.from("little_steward_settings").select("currency").maybeSingle()
   ]);
   [accountsRes, savingsRes, notesRes, settingsRes].forEach(throwIfErrorSync);
-  return {
+  const remote = {
     currency: settingsRes.data?.currency || data.currency,
     accounts: accountsRes.data || [],
     savings: savingsRes.data || [],
     notes: notesRes.data || []
   };
+  const plans = await fetchPlansFromCloud(client);
+  return plans ? applyPlanPayload(remote, plans) : normalizeData(remote);
+}
+async function syncPlansToCloud(client, userId) {
+  const { error } = await client.from("little_steward_plans").upsert({
+    user_id: userId,
+    id: "default",
+    payload: planPayload(),
+    updated_at: new Date().toISOString()
+  });
+  if (error && !String(error.message).includes("little_steward_plans")) throw error;
+}
+async function fetchPlansFromCloud(client) {
+  const { data: row, error } = await client.from("little_steward_plans").select("payload").eq("id", "default").maybeSingle();
+  if (error) return null;
+  return row?.payload || null;
 }
 async function pullFromCloud({ quiet = false, merge = false } = {}) {
   if (cloud.syncing) return;
@@ -543,8 +710,13 @@ async function pullFromCloud({ quiet = false, merge = false } = {}) {
         currency: remote.currency,
         accounts: mergeById(data.accounts, remote.accounts),
         savings: mergeById(data.savings, remote.savings),
-        notes: mergeById(data.notes, remote.notes)
+        notes: mergeById(data.notes, remote.notes),
+        goals: mergeById(data.goals, remote.goals || []),
+        budget: { ...data.budget, ...(remote.budget || {}) },
+        loanPlan: { ...data.loanPlan, ...(remote.loanPlan || {}) },
+        snapshots: mergeById(data.snapshots, remote.snapshots || [])
       };
+      data = normalizeData(data);
     } else {
       data = remote;
     }
@@ -590,17 +762,23 @@ document.addEventListener("click", e => {
   if (action === "add-asset") openEditor("account");
   if (action === "add-saving") openEditor("saving");
   if (action === "add-note") openEditor("note");
+  if (action === "add-goal") openEditor("goal");
+  if (action === "add-snapshot") openEditor("snapshot");
+  if (action === "edit-budget") openEditor("budget");
+  if (action === "edit-loan-plan") openEditor("loanPlan");
   const account = e.target.closest("[data-edit-account]")?.dataset.editAccount;
   const saving = e.target.closest("[data-edit-saving]")?.dataset.editSaving;
   const note = e.target.closest("[data-edit-note]")?.dataset.editNote;
+  const goal = e.target.closest("[data-edit-goal]")?.dataset.editGoal;
   if (account) openEditor("account", account);
   if (saving) openEditor("saving", saving);
   if (note) openEditor("note", note);
+  if (goal) openEditor("goal", goal);
 });
 function switchPage(id) {
   document.querySelectorAll(".page").forEach(p => p.classList.toggle("active", p.id === id));
   document.querySelectorAll(".bottom-nav button").forEach(b => b.classList.toggle("active", b.dataset.page === id));
-  document.querySelector("#pageTitle").textContent = ({ overviewPage:"我的资产", assetsPage:"资产与负债", savingsPage:"储蓄记录", notesPage:"Notes" })[id];
+  document.querySelector("#pageTitle").textContent = ({ overviewPage:"我的资产", assetsPage:"资产与负债", savingsPage:"储蓄记录", planningPage:"计划中心", notesPage:"Notes" })[id];
   scrollTo({ top: 0, behavior: "smooth" });
 }
 document.querySelector("#assetSegment").addEventListener("click", e => {
@@ -623,9 +801,36 @@ document.querySelector("#editorForm").onsubmit = async e => {
     values.amount = Number(values.amount);
     values.id = id || uid("s");
     data.savings = id ? data.savings.map(x => x.id === id ? values : x) : [...data.savings, values];
-  } else {
+  } else if (type === "note") {
     values.id = id || uid("n");
     data.notes = id ? data.notes.map(x => x.id === id ? values : x) : [...data.notes, values];
+  }
+  if (type === "goal") {
+    values.target = Number(values.target);
+    values.id = id || uid("g");
+    data.goals = id ? data.goals.map(x => x.id === id ? values : x) : [...data.goals, values];
+  }
+  if (type === "snapshot") {
+    values.assets = Number(values.assets);
+    values.liabilities = Number(values.liabilities);
+    values.id = id || uid("p");
+    data.snapshots = id ? data.snapshots.map(x => x.id === id ? values : x) : [...data.snapshots, values];
+  }
+  if (type === "budget") {
+    data.budget = {
+      monthlyIncome: Number(values.monthlyIncome),
+      fixedExpense: Number(values.fixedExpense),
+      flexExpense: Number(values.flexExpense),
+      savingTarget: Number(values.savingTarget)
+    };
+  }
+  if (type === "loanPlan") {
+    data.loanPlan = {
+      principal: Number(values.principal),
+      annualRate: Number(values.annualRate),
+      monthlyRepayment: Number(values.monthlyRepayment),
+      offsetBalance: Number(values.offsetBalance)
+    };
   }
   document.querySelector("#editorDialog").close();
   await persistData("已保存");
@@ -635,6 +840,8 @@ document.querySelector("#deleteButton").onclick = async () => {
   if (type === "account") data.accounts = data.accounts.filter(x => x.id !== id);
   if (type === "saving") data.savings = data.savings.filter(x => x.id !== id);
   if (type === "note") data.notes = data.notes.filter(x => x.id !== id);
+  if (type === "goal") data.goals = data.goals.filter(x => x.id !== id);
+  if (type === "snapshot") data.snapshots = data.snapshots.filter(x => x.id !== id);
   document.querySelector("#editorDialog").close();
   try { await deleteFromCloud(type, id); }
   catch (error) { showToast(`云端删除失败：${error.message}`); }
