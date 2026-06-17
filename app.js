@@ -4,6 +4,7 @@ const BIOMETRIC_KEY = "little-steward-biometric";
 const ENCRYPTION_KEY = "little-steward-encryption";
 const MARKET_CONFIG_KEY = "little-steward-market-config";
 const DEFAULT_ALPHA_VANTAGE_KEY = "SYC96IVAMPXH47F9";
+const DEFAULT_FINNHUB_TOKEN = "";
 const colors = ["#4b73e8", "#ea8a3c", "#8671df", "#1f9d68", "#e2799c", "#575a63"];
 const icons = { property: "⌂", cash: "$", stock: "↗", fund: "F", crypto: "₿", loan: "−", other: "•" };
 const labels = { property: "房产", cash: "现金存款", stock: "股票", fund: "基金", crypto: "Crypto", loan: "贷款", other: "其他" };
@@ -52,8 +53,8 @@ const seedData = {
   ],
   priceWatch: [
     { id: "w1", accountId: "a6", name: "Bitcoin", symbol: "BTC", source: "coingecko", coingeckoId: "bitcoin", quantity: 0.32, price: 115000, currency: "AUD", quoteCurrency: "AUD", change24h: 0, updatedAt: "" },
-    { id: "w2", accountId: "a4", name: "Apple", symbol: "AAPL", source: "alphavantage", coingeckoId: "", quantity: 20, price: 195, currency: "USD", quoteCurrency: "USD", change24h: 0, updatedAt: "" },
-    { id: "w3", accountId: "", name: "Vanguard ETF Watch", symbol: "VTI", source: "alphavantage", coingeckoId: "", quantity: 0, price: 0, currency: "USD", quoteCurrency: "USD", change24h: 0, updatedAt: "" }
+    { id: "w2", accountId: "a4", name: "Apple", symbol: "AAPL", source: "finnhub", coingeckoId: "", quantity: 20, price: 195, currency: "USD", quoteCurrency: "USD", change24h: 0, updatedAt: "" },
+    { id: "w3", accountId: "", name: "Vanguard ETF Watch", symbol: "VTI", source: "finnhub", coingeckoId: "", quantity: 0, price: 0, currency: "USD", quoteCurrency: "USD", change24h: 0, updatedAt: "" }
   ]
 };
 
@@ -125,6 +126,7 @@ function loadMarketConfig() {
 function normalizeMarketConfig(config) {
   return {
     alphaVantageKey: config.alphaVantageKey || DEFAULT_ALPHA_VANTAGE_KEY,
+    finnhubToken: config.finnhubToken || DEFAULT_FINNHUB_TOKEN,
     fxRates: config.fxRates || { "USD_AUD": 1.52, "AUD_USD": 0.66 },
     fxUpdatedAt: config.fxUpdatedAt || ""
   };
@@ -341,11 +343,11 @@ function renderLoanPlan() {
 }
 function renderPrices() {
   const watches = data.priceWatch || [];
-  const autoCount = watches.filter(w => ["coingecko", "alphavantage"].includes(w.source)).length;
+  const autoCount = watches.filter(w => ["coingecko", "alphavantage", "finnhub"].includes(w.source)).length;
   const lastUpdated = watches.map(w => w.updatedAt).filter(Boolean).sort().pop();
   document.querySelector("#priceSummary").textContent = autoCount
     ? `${autoCount} 个价格可自动刷新${lastUpdated ? `，最近更新 ${dateTimeLabel(lastUpdated)}` : ""}。`
-    : "添加 CoinGecko ID 或 Alpha Vantage 股票代码后即可自动刷新。";
+    : "添加 CoinGecko ID 或 Finnhub 股票代码后即可自动刷新。";
   document.querySelector("#priceWatchList").innerHTML = watches.map(w => {
     const quoteCurrency = w.quoteCurrency || w.currency || data.currency;
     const total = Number(w.quantity) * Number(w.price);
@@ -364,7 +366,7 @@ function renderPrices() {
   }).join("") || `<div class="card"><p class="eyebrow">还没有价格追踪</p></div>`;
 }
 function marketChangeBadge(w) {
-  if (!["coingecko", "alphavantage"].includes(w.source) || !w.updatedAt) {
+  if (!["coingecko", "alphavantage", "finnhub"].includes(w.source) || !w.updatedAt) {
     return `<em class="change-badge neutral">◇ 待刷新</em>`;
   }
   const change = Number(w.change24h) || 0;
@@ -374,6 +376,7 @@ function marketChangeBadge(w) {
 function priceSourceLabel(w) {
   if (w.source === "coingecko") return `CoinGecko: ${w.coingeckoId}`;
   if (w.source === "alphavantage") return `Alpha Vantage: ${w.symbol}`;
+  if (w.source === "finnhub") return `Finnhub: ${w.symbol}`;
   return "手动价格";
 }
 function dateTimeLabel(value) {
@@ -412,9 +415,10 @@ function renderSecurityUI() {
   document.querySelector("#disableFaceIdButton").classList.toggle("hidden", !biometric.enabled);
 }
 function renderMarketUI() {
+  document.querySelector("#finnhubTokenInput").value = marketConfig.finnhubToken || "";
   document.querySelector("#alphaVantageKeyInput").value = marketConfig.alphaVantageKey || "";
   const fx = marketConfig.fxRates?.USD_AUD ? `USD/AUD ${Number(marketConfig.fxRates.USD_AUD).toFixed(4)}` : "汇率待刷新";
-  document.querySelector("#marketStatus").textContent = marketConfig.alphaVantageKey ? `Alpha Vantage 已配置，${fx}。` : "未配置 Alpha Vantage。";
+  document.querySelector("#marketStatus").textContent = marketConfig.finnhubToken ? `Finnhub 已配置，${fx}。` : `未配置 Finnhub，${fx}。`;
 }
 function renderEncryptionUI() {
   const status = document.querySelector("#encryptionStatus");
@@ -488,7 +492,7 @@ function openEditor(type, id = null) {
     fields.innerHTML = `${field("名称", "name", item.name, "text", "required")}${field("代码", "symbol", item.symbol, "text", "required list='marketSymbolOptions' placeholder='输入或从列表选择，例如 AAPL / VAS.AX'")}<datalist id="marketSymbolOptions">${symbolOptions}</datalist>
       <button type="button" class="secondary-button full-width" id="marketSymbolSearchButton">搜索代码建议</button><div class="symbol-results" id="marketSymbolResults"></div>
       <label class="field"><span>关联资产账户</span><select name="accountId">${accountOptions}</select></label>
-      <label class="field"><span>价格来源</span><select name="source"><option value="manual" ${item.source === "manual" ? "selected":""}>手动价格</option><option value="coingecko" ${item.source === "coingecko" ? "selected":""}>CoinGecko Crypto</option><option value="alphavantage" ${item.source === "alphavantage" ? "selected":""}>Alpha Vantage 股票/ETF/基金</option></select></label>
+      <label class="field"><span>价格来源</span><select name="source"><option value="manual" ${item.source === "manual" ? "selected":""}>手动价格</option><option value="coingecko" ${item.source === "coingecko" ? "selected":""}>CoinGecko Crypto</option><option value="finnhub" ${item.source === "finnhub" ? "selected":""}>Finnhub 股票/ETF</option><option value="alphavantage" ${item.source === "alphavantage" ? "selected":""}>Alpha Vantage 股票/ETF/基金</option></select></label>
       <label class="field"><span>报价币种</span><select name="quoteCurrency"><option value="USD" ${(item.quoteCurrency || item.currency) === "USD" ? "selected":""}>USD 美元</option><option value="AUD" ${(item.quoteCurrency || item.currency) === "AUD" ? "selected":""}>AUD 澳元</option><option value="CNY" ${(item.quoteCurrency || item.currency) === "CNY" ? "selected":""}>CNY 人民币</option></select></label>
       ${field("CoinGecko ID", "coingeckoId", item.coingeckoId || "", "text", "placeholder='Crypto 填 bitcoin / ethereum；股票可留空'")}
       ${field("持仓数量", "quantity", item.quantity, "number", "min='0' step='any' placeholder='未持仓可填 0'")}${field("当前单价", "price", item.price, "number", "min='0' step='any' placeholder='可空，刷新后自动填入'")}`;
@@ -768,6 +772,7 @@ async function refreshAllPrices() {
   try {
     await refreshCryptoPrices({ quiet: true });
     await ensureNeededFxRates();
+    await refreshFinnhubPrices({ quiet: true });
     await refreshAlphaVantagePrices({ quiet: true });
     await persistData("价格已刷新");
   } catch (error) {
@@ -805,6 +810,46 @@ async function refreshCryptoPrices({ quiet = false } = {}) {
   } catch (error) {
     showToast(`刷新失败：${error.message || error}`);
   }
+}
+async function refreshFinnhubPrices({ quiet = false } = {}) {
+  const token = marketConfig.finnhubToken;
+  const watches = (data.priceWatch || []).filter(w => w.source === "finnhub" && w.symbol);
+  if (!watches.length) return;
+  if (!token) {
+    if (!quiet) throw new Error("请先配置 Finnhub API Token");
+    return;
+  }
+  if (!quiet) showToast("正在刷新 Finnhub 股票/ETF 价格...");
+  for (const watch of watches) {
+    const quote = await fetchFinnhubQuote(watch.symbol, token);
+    data.priceWatch = data.priceWatch.map(item => {
+      if (item.id !== watch.id) return item;
+      const updated = {
+        ...item,
+        price: quote.price,
+        change24h: quote.changePercent,
+        currency: item.quoteCurrency || item.currency || "USD",
+        quoteCurrency: item.quoteCurrency || item.currency || "USD",
+        updatedAt: quote.timestamp ? new Date(quote.timestamp * 1000).toISOString() : new Date().toISOString()
+      };
+      updateLinkedAccountValue(updated);
+      return updated;
+    });
+  }
+  if (!quiet) await persistData("Finnhub 价格已刷新");
+}
+async function fetchFinnhubQuote(symbol, token) {
+  const url = `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol.trim().toUpperCase())}&token=${encodeURIComponent(token)}`;
+  const response = await fetch(url, { headers: { accept: "application/json" } });
+  if (!response.ok) throw new Error(`Finnhub ${response.status}`);
+  const quote = await response.json();
+  if (quote.error) throw new Error(quote.error);
+  if (!Number.isFinite(Number(quote.c)) || Number(quote.c) <= 0) throw new Error(`没有找到 ${symbol} 的报价`);
+  return {
+    price: Number(quote.c),
+    changePercent: Number(quote.dp) || 0,
+    timestamp: Number(quote.t) || 0
+  };
 }
 async function refreshAlphaVantagePrices({ quiet = false } = {}) {
   const key = marketConfig.alphaVantageKey;
@@ -847,24 +892,23 @@ async function fetchAlphaQuote(symbol, key) {
 async function searchMarketSymbols() {
   const form = document.querySelector("#editorForm");
   const keyword = form.querySelector("[name='symbol']").value.trim() || form.querySelector("[name='name']").value.trim();
-  const key = marketConfig.alphaVantageKey;
+  const token = marketConfig.finnhubToken;
   if (!keyword) return showToast("先输入名称或代码关键词");
-  if (!key) return showToast("请先配置 Alpha Vantage API Key");
+  if (!token) return showToast("请先配置 Finnhub API Token");
   const target = document.querySelector("#marketSymbolResults");
   target.innerHTML = `<p class="cloud-diagnostic">正在搜索 ${escapeHtml(keyword)}...</p>`;
   try {
-    const url = `https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords=${encodeURIComponent(keyword)}&apikey=${encodeURIComponent(key)}`;
+    const url = `https://finnhub.io/api/v1/search?q=${encodeURIComponent(keyword)}&token=${encodeURIComponent(token)}`;
     const response = await fetch(url, { headers: { accept: "application/json" } });
-    if (!response.ok) throw new Error(`Alpha Vantage ${response.status}`);
+    if (!response.ok) throw new Error(`Finnhub ${response.status}`);
     const json = await response.json();
-    if (json.Note || json.Information) throw new Error(json.Note || json.Information);
-    const matches = (json.bestMatches || []).slice(0, 6);
+    if (json.error) throw new Error(json.error);
+    const matches = (json.result || []).slice(0, 8);
     target.innerHTML = matches.length ? matches.map(match => {
-      const symbol = match["1. symbol"] || "";
-      const name = match["2. name"] || "";
-      const region = match["4. region"] || "";
-      const currency = match["8. currency"] || "USD";
-      return `<button type="button" class="symbol-result" data-symbol="${escapeHtml(symbol)}" data-name="${escapeHtml(name)}" data-currency="${escapeHtml(currency)}"><strong>${escapeHtml(symbol)}</strong><span>${escapeHtml(name)} · ${escapeHtml(region)} · ${escapeHtml(currency)}</span></button>`;
+      const symbol = match.symbol || "";
+      const name = match.description || match.displaySymbol || "";
+      const type = match.type || "";
+      return `<button type="button" class="symbol-result" data-symbol="${escapeHtml(symbol)}" data-name="${escapeHtml(name)}" data-currency="USD"><strong>${escapeHtml(symbol)}</strong><span>${escapeHtml(name)} · ${escapeHtml(type)}</span></button>`;
     }).join("") : `<p class="cloud-diagnostic">没有找到匹配代码。</p>`;
   } catch (error) {
     target.innerHTML = `<p class="cloud-diagnostic error">搜索失败：${escapeHtml(error.message || error)}</p>`;
@@ -1298,8 +1342,9 @@ document.querySelector("#disableEncryptionButton").onclick = disableEncryption;
 document.querySelector("#exportDataButton").onclick = exportData;
 document.querySelector("#importDataInput").onchange = e => importData(e.target.files[0]);
 document.querySelector("#saveMarketConfigButton").onclick = () => {
+  const finnhubToken = document.querySelector("#finnhubTokenInput").value.trim();
   const alphaVantageKey = document.querySelector("#alphaVantageKeyInput").value.trim();
-  saveMarketConfig({ ...marketConfig, alphaVantageKey });
+  saveMarketConfig({ ...marketConfig, finnhubToken, alphaVantageKey });
   renderMarketUI();
   showToast("行情设置已保存");
 };

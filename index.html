@@ -273,11 +273,15 @@
       <div class="market-panel">
         <div>
           <strong>行情 API</strong>
-          <span id="marketStatus">Alpha Vantage 已配置</span>
+          <span id="marketStatus">Finnhub 待配置</span>
         </div>
         <label class="field">
-          <span>Alpha Vantage API Key</span>
-          <input id="alphaVantageKeyInput" type="password" placeholder="Alpha Vantage free API key" autocomplete="off">
+          <span>Finnhub API Token</span>
+          <input id="finnhubTokenInput" type="password" placeholder="用于股票/ETF 刷新" autocomplete="off">
+        </label>
+        <label class="field">
+          <span>Alpha Vantage API Key（汇率备用）</span>
+          <input id="alphaVantageKeyInput" type="password" placeholder="用于 USD/AUD 汇率" autocomplete="off">
         </label>
         <button class="secondary-button full-width" id="saveMarketConfigButton">保存行情设置</button>
       </div>
