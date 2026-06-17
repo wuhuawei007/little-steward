@@ -161,6 +161,26 @@
         <article class="card loan-card" id="loanPlanCard"></article>
       </section>
 
+      <section class="page" id="pricesPage">
+        <article class="card price-hero">
+          <div>
+            <p class="eyebrow">Market Sync</p>
+            <h2>价格追踪</h2>
+            <p id="priceSummary">管理股票、基金和 Crypto 的持仓价格。</p>
+          </div>
+          <button class="primary-button" id="refreshPricesButton">刷新 Crypto</button>
+        </article>
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Watchlist</p>
+            <h2>持仓价格</h2>
+          </div>
+          <button class="text-button" data-action="add-price-watch">添加</button>
+        </div>
+        <div class="price-list" id="priceWatchList"></div>
+        <button class="primary-button full-width" data-action="add-price-watch">＋ 添加价格追踪</button>
+      </section>
+
       <section class="page" id="notesPage">
         <div class="notes-intro">
           <p class="eyebrow">财务随手记</p>
@@ -176,7 +196,7 @@
       <button data-page="assetsPage"><span>▦</span>资产</button>
       <button data-page="savingsPage"><span>↗</span>储蓄</button>
       <button data-page="planningPage"><span>◎</span>计划</button>
-      <button data-page="notesPage"><span>✎</span>Notes</button>
+      <button data-page="pricesPage"><span>$</span>价格</button>
     </nav>
   </div>
 

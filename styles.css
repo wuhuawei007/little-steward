@@ -154,6 +154,19 @@ h2 { margin-bottom: 0; font-size: 22px; letter-spacing: -.035em; }
 .metric-tile { padding: 13px; border-radius: 16px; background: rgba(118,118,128,.09); }
 .metric-tile span { display: block; color: var(--muted); font-size: 10px; font-weight: 650; }
 .metric-tile strong { display: block; margin-top: 5px; font-size: 17px; }
+.price-hero { display: flex; justify-content: space-between; gap: 16px; align-items: center; margin-bottom: 18px; background: linear-gradient(145deg, rgba(255,255,255,.9), rgba(232,238,255,.88)); }
+.price-hero p:last-child { margin: 7px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.price-hero .primary-button { flex: 0 0 auto; padding: 12px 14px; border-radius: 14px; }
+.price-list { display: grid; gap: 10px; margin-bottom: 22px; }
+.price-row { display: grid; grid-template-columns: 44px 1fr auto; gap: 12px; align-items: center; padding: 14px; border: 0; border-radius: 20px; text-align: left; color: var(--text); background: var(--card); box-shadow: 0 5px 20px rgba(30,30,40,.045); }
+.price-symbol { display: grid; width: 44px; height: 44px; place-items: center; border-radius: 15px; color: white; background: linear-gradient(145deg, #171719, #626672); font-size: 13px; font-weight: 800; }
+.price-copy { display: grid; gap: 3px; }
+.price-copy strong { font-size: 14px; }
+.price-copy span, .price-value span { color: var(--muted); font-size: 11px; }
+.price-value { display: grid; gap: 3px; text-align: right; }
+.price-value strong { font-size: 14px; }
+.positive { color: var(--green); }
+.negative { color: var(--red); }
 .notes-intro { padding: 8px 3px 20px; }
 .notes-intro h2 { font-size: 34px; line-height: 1.15; letter-spacing: -.055em; }
 .notes-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 11px; }

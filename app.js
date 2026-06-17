@@ -42,6 +42,11 @@ const seedData = {
     { id: "p3", month: "2026-03", assets: 1870000, liabilities: 918000 },
     { id: "p4", month: "2026-04", assets: 1905000, liabilities: 910000 },
     { id: "p5", month: "2026-05", assets: 1923900, liabilities: 900000 }
+  ],
+  priceWatch: [
+    { id: "w1", accountId: "a6", name: "Bitcoin", symbol: "BTC", source: "coingecko", coingeckoId: "bitcoin", quantity: 0.32, price: 115000, currency: "AUD", change24h: 0, updatedAt: "" },
+    { id: "w2", accountId: "a4", name: "股票组合", symbol: "STOCKS", source: "manual", coingeckoId: "", quantity: 1, price: 128400, currency: "AUD", change24h: 0, updatedAt: "" },
+    { id: "w3", accountId: "a5", name: "基金", symbol: "FUNDS", source: "manual", coingeckoId: "", quantity: 1, price: 74200, currency: "AUD", change24h: 0, updatedAt: "" }
   ]
 };
 
@@ -75,7 +80,8 @@ function normalizeData(raw) {
     goals: raw.goals || defaults.goals,
     budget: { ...defaults.budget, ...(raw.budget || {}) },
     loanPlan: { ...defaults.loanPlan, ...(raw.loanPlan || {}) },
-    snapshots: raw.snapshots || defaults.snapshots
+    snapshots: raw.snapshots || defaults.snapshots,
+    priceWatch: raw.priceWatch || defaults.priceWatch
   };
 }
 function saveLocalData() {
@@ -149,6 +155,7 @@ function render() {
   renderAccounts();
   renderSavings();
   renderPlanning();
+  renderPrices();
   renderNotes();
   renderCloudUI();
   renderSecurityUI();
@@ -293,6 +300,27 @@ function renderLoanPlan() {
     <div class="metric-tile"><span>每月还本</span><strong>${money(principalPaydown)}</strong></div>
   </div>`;
 }
+function renderPrices() {
+  const watches = data.priceWatch || [];
+  const autoCount = watches.filter(w => w.source === "coingecko").length;
+  const lastUpdated = watches.map(w => w.updatedAt).filter(Boolean).sort().pop();
+  document.querySelector("#priceSummary").textContent = autoCount
+    ? `${autoCount} 个 Crypto 可自动刷新${lastUpdated ? `，最近更新 ${dateTimeLabel(lastUpdated)}` : ""}。`
+    : "添加 CoinGecko ID 后即可自动刷新 Crypto 价格。";
+  document.querySelector("#priceWatchList").innerHTML = watches.map(w => {
+    const total = Number(w.quantity) * Number(w.price);
+    const source = w.source === "coingecko" ? `CoinGecko: ${w.coingeckoId}` : "手动价格";
+    const change = Number(w.change24h) || 0;
+    return `<button class="price-row" data-edit-price-watch="${w.id}">
+      <span class="price-symbol">${escapeHtml((w.symbol || "?").slice(0, 4).toUpperCase())}</span>
+      <span class="price-copy"><strong>${escapeHtml(w.name)}</strong><span>${source} · 数量 ${Number(w.quantity).toLocaleString("zh-CN")}</span></span>
+      <span class="price-value"><strong>${money(total)}</strong><span class="${change >= 0 ? "positive" : "negative"}">${w.source === "coingecko" ? `${change >= 0 ? "+" : ""}${change.toFixed(2)}%` : money(w.price)}</span></span>
+    </button>`;
+  }).join("") || `<div class="card"><p class="eyebrow">还没有价格追踪</p></div>`;
+}
+function dateTimeLabel(value) {
+  return new Intl.DateTimeFormat("zh-CN", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(value));
+}
 function renderCloudUI() {
   const hasConfig = Boolean(cloud.config.url && cloud.config.anonKey);
   const email = cloud.session?.user?.email;
@@ -368,6 +396,17 @@ function openEditor(type, id = null) {
     deleteBtn.classList.add("hidden");
     document.querySelector("#dialogTitle").textContent = "编辑房贷测算";
     fields.innerHTML = `${field("贷款本金", "principal", item.principal, "number", "min='0' step='0.01' required")}${field("年利率 %", "annualRate", item.annualRate, "number", "min='0' step='0.01' required")}${field("每月还款", "monthlyRepayment", item.monthlyRepayment, "number", "min='0' step='0.01' required")}${field("Offset / 对冲账户余额", "offsetBalance", item.offsetBalance, "number", "min='0' step='0.01' required")}`;
+  }
+  if (type === "priceWatch") {
+    data.priceWatch = data.priceWatch || [];
+    const item = data.priceWatch.find(w => w.id === id) || { accountId:"", name:"", symbol:"", source:"manual", coingeckoId:"", quantity:"", price:"", currency:data.currency, change24h:0, updatedAt:"" };
+    const accountOptions = [`<option value="">不关联账户</option>`].concat(data.accounts.filter(a => a.kind === "asset").map(a => `<option value="${a.id}" ${item.accountId === a.id ? "selected":""}>${escapeHtml(a.name)}</option>`)).join("");
+    document.querySelector("#dialogTitle").textContent = id ? "编辑价格追踪" : "添加价格追踪";
+    fields.innerHTML = `${field("名称", "name", item.name, "text", "required")}${field("代码", "symbol", item.symbol, "text", "required")}
+      <label class="field"><span>关联资产账户</span><select name="accountId">${accountOptions}</select></label>
+      <label class="field"><span>价格来源</span><select name="source"><option value="manual" ${item.source === "manual" ? "selected":""}>手动价格</option><option value="coingecko" ${item.source === "coingecko" ? "selected":""}>CoinGecko Crypto</option></select></label>
+      ${field("CoinGecko ID", "coingeckoId", item.coingeckoId || "", "text", "placeholder='例如 bitcoin, ethereum, solana'")}
+      ${field("持仓数量", "quantity", item.quantity, "number", "min='0' step='any' required")}${field("当前单价", "price", item.price, "number", "min='0' step='any' required")}`;
   }
   dialog.showModal();
 }
@@ -555,7 +594,8 @@ async function importData(file) {
       goals: imported.goals,
       budget: imported.budget,
       loanPlan: imported.loanPlan,
-      snapshots: imported.snapshots
+      snapshots: imported.snapshots,
+      priceWatch: imported.priceWatch
     };
     data = normalizeData(data);
     await persistData("备份已导入");
@@ -563,6 +603,37 @@ async function importData(file) {
     showToast(`导入失败：${error.message || error}`);
   } finally {
     document.querySelector("#importDataInput").value = "";
+  }
+}
+async function refreshCryptoPrices() {
+  const cryptoWatches = (data.priceWatch || []).filter(w => w.source === "coingecko" && w.coingeckoId);
+  if (!cryptoWatches.length) return showToast("没有可刷新的 Crypto 条目");
+  const vs = data.currency.toLowerCase();
+  const ids = [...new Set(cryptoWatches.map(w => w.coingeckoId.trim().toLowerCase()))].join(",");
+  const url = `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(ids)}&vs_currencies=${encodeURIComponent(vs)}&include_24hr_change=true&include_last_updated_at=true`;
+  try {
+    showToast("正在刷新 Crypto 价格...");
+    const response = await fetch(url, { headers: { accept: "application/json" } });
+    if (!response.ok) throw new Error(`CoinGecko ${response.status}`);
+    const prices = await response.json();
+    data.priceWatch = data.priceWatch.map(watch => {
+      if (watch.source !== "coingecko" || !watch.coingeckoId) return watch;
+      const key = watch.coingeckoId.trim().toLowerCase();
+      const result = prices[key];
+      if (!result || result[vs] == null) return watch;
+      const updated = {
+        ...watch,
+        price: Number(result[vs]),
+        currency: data.currency,
+        change24h: Number(result[`${vs}_24h_change`]) || 0,
+        updatedAt: result.last_updated_at ? new Date(result.last_updated_at * 1000).toISOString() : new Date().toISOString()
+      };
+      updateLinkedAccountValue(updated);
+      return updated;
+    });
+    await persistData("Crypto 价格已刷新");
+  } catch (error) {
+    showToast(`刷新失败：${error.message || error}`);
   }
 }
 function setLoginMessage(text) {
@@ -598,7 +669,8 @@ function planPayload() {
     goals: data.goals || [],
     budget: data.budget || seedData.budget,
     loanPlan: data.loanPlan || seedData.loanPlan,
-    snapshots: data.snapshots || []
+    snapshots: data.snapshots || [],
+    priceWatch: data.priceWatch || []
   };
 }
 function applyPlanPayload(target, payload = {}) {
@@ -607,7 +679,8 @@ function applyPlanPayload(target, payload = {}) {
     goals: payload.goals || target.goals,
     budget: payload.budget || target.budget,
     loanPlan: payload.loanPlan || target.loanPlan,
-    snapshots: payload.snapshots || target.snapshots
+    snapshots: payload.snapshots || target.snapshots,
+    priceWatch: payload.priceWatch || target.priceWatch
   });
 }
 async function reconcileCloudOnLogin() {
@@ -626,7 +699,8 @@ async function reconcileCloudOnLogin() {
         goals: mergeById(data.goals, remote.goals || []),
         budget: { ...data.budget, ...(remote.budget || {}) },
         loanPlan: { ...data.loanPlan, ...(remote.loanPlan || {}) },
-        snapshots: mergeById(data.snapshots, remote.snapshots || [])
+        snapshots: mergeById(data.snapshots, remote.snapshots || []),
+        priceWatch: mergeById(data.priceWatch, remote.priceWatch || [])
       };
       data = normalizeData(data);
       saveLocalData();
@@ -714,7 +788,8 @@ async function pullFromCloud({ quiet = false, merge = false } = {}) {
         goals: mergeById(data.goals, remote.goals || []),
         budget: { ...data.budget, ...(remote.budget || {}) },
         loanPlan: { ...data.loanPlan, ...(remote.loanPlan || {}) },
-        snapshots: mergeById(data.snapshots, remote.snapshots || [])
+        snapshots: mergeById(data.snapshots, remote.snapshots || []),
+        priceWatch: mergeById(data.priceWatch, remote.priceWatch || [])
       };
       data = normalizeData(data);
     } else {
@@ -734,6 +809,15 @@ function mergeById(localRows, remoteRows) {
   const map = new Map();
   [...localRows, ...remoteRows].forEach(row => map.set(row.id, { ...map.get(row.id), ...row }));
   return Array.from(map.values());
+}
+function updateLinkedAccountValue(watch) {
+  if (!watch.accountId) return;
+  const value = Number(watch.quantity) * Number(watch.price);
+  data.accounts = data.accounts.map(account => account.id === watch.accountId ? {
+    ...account,
+    value,
+    updated: new Date().toISOString().slice(0, 10)
+  } : account);
 }
 async function deleteFromCloud(type, id) {
   const client = ensureSupabaseClient();
@@ -766,19 +850,22 @@ document.addEventListener("click", e => {
   if (action === "add-snapshot") openEditor("snapshot");
   if (action === "edit-budget") openEditor("budget");
   if (action === "edit-loan-plan") openEditor("loanPlan");
+  if (action === "add-price-watch") openEditor("priceWatch");
   const account = e.target.closest("[data-edit-account]")?.dataset.editAccount;
   const saving = e.target.closest("[data-edit-saving]")?.dataset.editSaving;
   const note = e.target.closest("[data-edit-note]")?.dataset.editNote;
   const goal = e.target.closest("[data-edit-goal]")?.dataset.editGoal;
+  const priceWatch = e.target.closest("[data-edit-price-watch]")?.dataset.editPriceWatch;
   if (account) openEditor("account", account);
   if (saving) openEditor("saving", saving);
   if (note) openEditor("note", note);
   if (goal) openEditor("goal", goal);
+  if (priceWatch) openEditor("priceWatch", priceWatch);
 });
 function switchPage(id) {
   document.querySelectorAll(".page").forEach(p => p.classList.toggle("active", p.id === id));
   document.querySelectorAll(".bottom-nav button").forEach(b => b.classList.toggle("active", b.dataset.page === id));
-  document.querySelector("#pageTitle").textContent = ({ overviewPage:"我的资产", assetsPage:"资产与负债", savingsPage:"储蓄记录", planningPage:"计划中心", notesPage:"Notes" })[id];
+  document.querySelector("#pageTitle").textContent = ({ overviewPage:"我的资产", assetsPage:"资产与负债", savingsPage:"储蓄记录", planningPage:"计划中心", pricesPage:"价格中心", notesPage:"Notes" })[id];
   scrollTo({ top: 0, behavior: "smooth" });
 }
 document.querySelector("#assetSegment").addEventListener("click", e => {
@@ -832,6 +919,17 @@ document.querySelector("#editorForm").onsubmit = async e => {
       offsetBalance: Number(values.offsetBalance)
     };
   }
+  if (type === "priceWatch") {
+    values.quantity = Number(values.quantity);
+    values.price = Number(values.price);
+    values.change24h = Number(values.change24h) || 0;
+    values.currency = data.currency;
+    values.updatedAt = new Date().toISOString();
+    values.id = id || uid("w");
+    data.priceWatch = data.priceWatch || [];
+    data.priceWatch = id ? data.priceWatch.map(x => x.id === id ? { ...x, ...values } : x) : [...data.priceWatch, values];
+    updateLinkedAccountValue(values);
+  }
   document.querySelector("#editorDialog").close();
   await persistData("已保存");
 };
@@ -842,6 +940,7 @@ document.querySelector("#deleteButton").onclick = async () => {
   if (type === "note") data.notes = data.notes.filter(x => x.id !== id);
   if (type === "goal") data.goals = data.goals.filter(x => x.id !== id);
   if (type === "snapshot") data.snapshots = data.snapshots.filter(x => x.id !== id);
+  if (type === "priceWatch") data.priceWatch = data.priceWatch.filter(x => x.id !== id);
   document.querySelector("#editorDialog").close();
   try { await deleteFromCloud(type, id); }
   catch (error) { showToast(`云端删除失败：${error.message}`); }
@@ -874,6 +973,7 @@ document.querySelector("#testSupabaseConnection").onclick = testSupabaseConnecti
 document.querySelector("#signOutButton").onclick = signOut;
 document.querySelector("#syncNowButton").onclick = () => syncToCloud();
 document.querySelector("#pullCloudButton").onclick = () => pullFromCloud();
+document.querySelector("#refreshPricesButton").onclick = refreshCryptoPrices;
 document.querySelector("#enableFaceIdButton").onclick = enableFaceIdUnlock;
 document.querySelector("#disableFaceIdButton").onclick = disableFaceIdUnlock;
 document.querySelector("#exportDataButton").onclick = exportData;
