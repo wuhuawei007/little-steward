@@ -163,6 +163,10 @@ h2 { margin-bottom: 0; font-size: 22px; letter-spacing: -.035em; }
 .price-copy { display: grid; gap: 3px; }
 .price-copy strong { font-size: 14px; }
 .price-copy span, .price-value span { color: var(--muted); font-size: 11px; }
+.change-badge { display: inline-flex; width: fit-content; margin-top: 3px; padding: 4px 8px; border-radius: 99px; font-style: normal; font-size: 10px; font-weight: 750; letter-spacing: .01em; }
+.change-badge.up { color: var(--green); background: rgba(31,157,104,.1); }
+.change-badge.down { color: var(--red); background: rgba(217,80,80,.1); }
+.change-badge.neutral { color: var(--muted); background: rgba(118,118,128,.1); }
 .price-value { display: grid; gap: 3px; text-align: right; }
 .price-value strong { font-size: 14px; }
 .positive { color: var(--green); }

@@ -354,13 +354,22 @@ function renderPrices() {
     const change = Number(w.change24h) || 0;
     const holding = w.accountId ? "已关联持仓" : "未持仓";
     const primaryValue = w.accountId ? money(convertedTotal) : moneyInCurrency(Number(w.price) || 0, quoteCurrency);
-    const subValue = w.accountId && quoteCurrency !== data.currency ? `${moneyInCurrency(total, quoteCurrency)} → ${money(convertedTotal)}` : (["coingecko", "alphavantage"].includes(w.source) ? `${change >= 0 ? "+" : ""}${change.toFixed(2)}%` : "手动");
+    const subValue = w.accountId && quoteCurrency !== data.currency ? `${moneyInCurrency(total, quoteCurrency)} → ${money(convertedTotal)}` : moneyInCurrency(Number(w.price) || 0, quoteCurrency);
+    const changeBadge = marketChangeBadge(w);
     return `<button class="price-row" data-edit-price-watch="${w.id}">
       <span class="price-symbol">${escapeHtml((w.symbol || "?").slice(0, 4).toUpperCase())}</span>
-      <span class="price-copy"><strong>${escapeHtml(w.name)}</strong><span>${source} · ${holding} · 数量 ${Number(w.quantity).toLocaleString("zh-CN")}</span></span>
-      <span class="price-value"><strong>${primaryValue}</strong><span class="${change >= 0 ? "positive" : "negative"}">${subValue}</span></span>
+      <span class="price-copy"><strong>${escapeHtml(w.name)}</strong><span>${source} · ${holding} · 数量 ${Number(w.quantity).toLocaleString("zh-CN")}</span>${changeBadge}</span>
+      <span class="price-value"><strong>${primaryValue}</strong><span>${subValue}</span></span>
     </button>`;
   }).join("") || `<div class="card"><p class="eyebrow">还没有价格追踪</p></div>`;
+}
+function marketChangeBadge(w) {
+  if (!["coingecko", "alphavantage"].includes(w.source) || !w.updatedAt) {
+    return `<em class="change-badge neutral">◇ 待刷新</em>`;
+  }
+  const change = Number(w.change24h) || 0;
+  const up = change >= 0;
+  return `<em class="change-badge ${up ? "up" : "down"}">${up ? "▲" : "▼"} 24h ${up ? "+" : ""}${change.toFixed(2)}%</em>`;
 }
 function priceSourceLabel(w) {
   if (w.source === "coingecko") return `CoinGecko: ${w.coingeckoId}`;
