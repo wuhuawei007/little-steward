@@ -13,6 +13,24 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
+  <section class="login-screen" id="loginScreen" aria-live="polite">
+    <div class="orb orb-one"></div>
+    <div class="orb orb-two"></div>
+    <div class="login-card">
+      <div class="login-mark">
+        <span class="scan-line"></span>
+        <i>⌂</i>
+      </div>
+      <p class="eyebrow">Little Steward</p>
+      <h2>欢迎回来</h2>
+      <p id="loginSubtitle">正在唤醒你的小管家...</p>
+      <div class="loading-track" id="loadingTrack"><span></span></div>
+      <button class="primary-button full-width hidden" id="faceUnlockButton">使用 Face ID 解锁</button>
+      <button class="secondary-button full-width hidden" id="enterAppButton">进入小管家</button>
+      <button class="text-button hidden" id="loginSettingsButton">设置 Supabase 登录</button>
+    </div>
+  </section>
+
   <div class="app-shell">
     <header class="topbar">
       <div>
@@ -178,6 +196,14 @@
           <button class="primary-button full-width" id="pullCloudButton">从云端恢复到本机</button>
           <button class="danger-button" id="signOutButton">退出登录</button>
         </div>
+      </div>
+      <div class="security-panel">
+        <div>
+          <strong>Face ID 快速解锁</strong>
+          <span id="faceIdStatus">未启用</span>
+        </div>
+        <button class="primary-button full-width" id="enableFaceIdButton">启用 Face ID 解锁</button>
+        <button class="danger-button hidden" id="disableFaceIdButton">关闭 Face ID 解锁</button>
       </div>
       <div class="settings-row">
         <div><strong>本地保存</strong><span>数据仅保存在这台设备</span></div>

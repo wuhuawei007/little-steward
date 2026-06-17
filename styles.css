@@ -26,6 +26,39 @@ body {
 }
 button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
+.login-screen {
+  position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; overflow: hidden;
+  padding: 24px; color: white; background: radial-gradient(circle at 20% 15%, #5267ff 0, transparent 24rem), linear-gradient(145deg, #090a12, #1d1f2d 58%, #090a12);
+  transition: opacity .42s ease, visibility .42s ease;
+}
+.login-screen.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+.orb { position: absolute; width: 260px; height: 260px; border-radius: 50%; filter: blur(28px); opacity: .55; animation: floatOrb 8s ease-in-out infinite alternate; }
+.orb-one { left: -80px; top: 12%; background: #4b73e8; }
+.orb-two { right: -70px; bottom: 8%; background: #8671df; animation-delay: -2s; }
+@keyframes floatOrb { to { transform: translate3d(28px, -22px, 0) scale(1.08); } }
+.login-card {
+  position: relative; z-index: 1; display: grid; width: min(100%, 390px); gap: 14px; justify-items: center;
+  padding: 34px 22px 24px; border: 1px solid rgba(255,255,255,.16); border-radius: 34px;
+  background: rgba(255,255,255,.11); box-shadow: 0 24px 70px rgba(0,0,0,.34); backdrop-filter: blur(24px);
+}
+.login-card .eyebrow { color: rgba(255,255,255,.62); }
+.login-card h2 { margin: 0; font-size: 36px; letter-spacing: -.055em; }
+.login-card p:not(.eyebrow) { margin: 0 0 4px; color: rgba(255,255,255,.72); text-align: center; font-size: 13px; line-height: 1.55; }
+.login-mark {
+  position: relative; display: grid; width: 104px; height: 104px; place-items: center; overflow: hidden;
+  border: 1px solid rgba(255,255,255,.22); border-radius: 30px; background: rgba(255,255,255,.12);
+}
+.login-mark::before, .login-mark::after { content: ""; position: absolute; inset: 15px; border: 2px solid rgba(255,255,255,.28); border-radius: 20px; }
+.login-mark::after { inset: 25px; opacity: .42; }
+.login-mark i { position: relative; z-index: 1; font-style: normal; font-size: 38px; }
+.scan-line { position: absolute; left: 14px; right: 14px; top: 18px; height: 2px; z-index: 2; border-radius: 99px; background: #a6ffdc; box-shadow: 0 0 18px #a6ffdc; animation: scan 1.75s ease-in-out infinite; }
+@keyframes scan { 50% { transform: translateY(66px); } }
+.loading-track { width: 100%; height: 6px; overflow: hidden; border-radius: 99px; background: rgba(255,255,255,.14); }
+.loading-track span { display: block; width: 38%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #a6ffdc, #fff); animation: loadSlide 1.2s ease-in-out infinite; }
+@keyframes loadSlide { 0% { transform: translateX(-105%); } 100% { transform: translateX(270%); } }
+.login-card .primary-button { background: white; color: #11131b; }
+.login-card .secondary-button { color: white; background: rgba(255,255,255,.14); }
+.login-card .text-button { color: rgba(255,255,255,.78); }
 .app-shell { width: min(100%, 760px); min-height: 100dvh; margin: 0 auto; padding: env(safe-area-inset-top) 18px calc(102px + env(safe-area-inset-bottom)); }
 .topbar { display: flex; align-items: center; justify-content: space-between; padding: 28px 2px 22px; }
 .eyebrow { margin: 0 0 5px; color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
@@ -147,6 +180,10 @@ dialog[open] { animation: sheetUp .25s ease both; }
 .cloud-diagnostic.error { color: var(--red); }
 .cloud-diagnostic.ok { color: var(--green); }
 .text-button:disabled, .primary-button:disabled, .secondary-button:disabled { opacity: .45; cursor: not-allowed; }
+.security-panel { display: grid; gap: 12px; margin-top: 14px; padding: 15px; border-radius: 20px; background: white; }
+.security-panel div { display: grid; gap: 4px; }
+.security-panel span { color: var(--muted); font-size: 11px; line-height: 1.45; }
+.security-panel .danger-button { margin-top: 0; }
 .toast { position: fixed; left: 50%; bottom: 110px; z-index: 30; padding: 10px 15px; border-radius: 99px; color: white; background: rgba(20,20,22,.88); opacity: 0; pointer-events: none; transform: translate(-50%, 8px); transition: .2s ease; font-size: 12px; }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 

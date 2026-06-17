@@ -1,5 +1,6 @@
 const STORAGE_KEY = "little-steward-v1";
 const SUPABASE_CONFIG_KEY = "little-steward-supabase-config";
+const BIOMETRIC_KEY = "little-steward-biometric";
 const colors = ["#4b73e8", "#ea8a3c", "#8671df", "#1f9d68", "#e2799c", "#575a63"];
 const icons = { property: "⌂", cash: "$", stock: "↗", fund: "F", crypto: "₿", loan: "−", other: "•" };
 const labels = { property: "房产", cash: "现金存款", stock: "股票", fund: "基金", crypto: "Crypto", loan: "贷款", other: "其他" };
@@ -44,6 +45,7 @@ let cloud = {
   diagnosticType: ""
 };
 let localDataExists = Boolean(localStorage.getItem(STORAGE_KEY));
+let biometric = loadBiometricConfig();
 
 function loadData() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || structuredClone(seedData); }
@@ -56,6 +58,14 @@ function saveLocalData() {
 function loadSupabaseConfig() {
   try { return JSON.parse(localStorage.getItem(SUPABASE_CONFIG_KEY)) || { url: "", anonKey: "" }; }
   catch { return { url: "", anonKey: "" }; }
+}
+function loadBiometricConfig() {
+  try { return JSON.parse(localStorage.getItem(BIOMETRIC_KEY)) || { enabled: false, credentialId: "" }; }
+  catch { return { enabled: false, credentialId: "" }; }
+}
+function saveBiometricConfig(config) {
+  biometric = config;
+  localStorage.setItem(BIOMETRIC_KEY, JSON.stringify(config));
 }
 function saveSupabaseConfig(config) {
   cloud.config = config;
@@ -112,6 +122,7 @@ function render() {
   renderSavings();
   renderNotes();
   renderCloudUI();
+  renderSecurityUI();
 }
 
 function renderAllocation() {
@@ -180,6 +191,13 @@ function renderCloudUI() {
   const diagnostic = document.querySelector("#cloudDiagnostic");
   diagnostic.textContent = cloud.diagnostic;
   diagnostic.className = `cloud-diagnostic ${cloud.diagnosticType}`;
+}
+function renderSecurityUI() {
+  const supported = Boolean(window.PublicKeyCredential && navigator.credentials && window.isSecureContext);
+  const status = document.querySelector("#faceIdStatus");
+  status.textContent = !supported ? "此浏览器不支持，或当前不是 HTTPS" : biometric.enabled ? "已启用。下次打开会要求 Face ID/设备解锁。" : "未启用";
+  document.querySelector("#enableFaceIdButton").classList.toggle("hidden", !supported || biometric.enabled);
+  document.querySelector("#disableFaceIdButton").classList.toggle("hidden", !biometric.enabled);
 }
 
 function field(label, name, value = "", type = "text", extra = "") {
@@ -295,6 +313,96 @@ async function signOut() {
   cloud.session = null;
   renderCloudUI();
   showToast("已退出登录");
+}
+function randomBytes(length = 32) {
+  const bytes = new Uint8Array(length);
+  crypto.getRandomValues(bytes);
+  return bytes;
+}
+function bytesToBase64url(bytes) {
+  return btoa(String.fromCharCode(...new Uint8Array(bytes))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+function base64urlToBytes(value) {
+  const padded = value.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((value.length + 3) % 4);
+  return Uint8Array.from(atob(padded), c => c.charCodeAt(0));
+}
+async function enableFaceIdUnlock() {
+  if (!window.PublicKeyCredential || !navigator.credentials || !window.isSecureContext) {
+    return showToast("需要 HTTPS 浏览器才支持 Face ID 解锁");
+  }
+  try {
+    const credential = await navigator.credentials.create({
+      publicKey: {
+        challenge: randomBytes(),
+        rp: { name: "小管家" },
+        user: {
+          id: randomBytes(16),
+          name: cloud.session?.user?.email || "little-steward-user",
+          displayName: cloud.session?.user?.email || "小管家用户"
+        },
+        pubKeyCredParams: [{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }],
+        authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" },
+        timeout: 60000,
+        attestation: "none"
+      }
+    });
+    saveBiometricConfig({ enabled: true, credentialId: bytesToBase64url(credential.rawId) });
+    renderSecurityUI();
+    showToast("Face ID 解锁已启用");
+  } catch (error) {
+    showToast(`启用失败：${error.message || error}`);
+  }
+}
+async function unlockWithFaceId() {
+  if (!biometric.enabled || !biometric.credentialId) return showLoginReady();
+  try {
+    setLoginMessage("等待 Face ID 确认...");
+    await navigator.credentials.get({
+      publicKey: {
+        challenge: randomBytes(),
+        allowCredentials: [{ type: "public-key", id: base64urlToBytes(biometric.credentialId) }],
+        userVerification: "required",
+        timeout: 60000
+      }
+    });
+    hideLoginScreen();
+    showToast("欢迎回来");
+  } catch {
+    setLoginMessage("Face ID 未完成。你可以重试，或进入设置处理登录。");
+    document.querySelector("#faceUnlockButton").classList.remove("hidden");
+    document.querySelector("#enterAppButton").classList.remove("hidden");
+    document.querySelector("#loginSettingsButton").classList.remove("hidden");
+  }
+}
+function disableFaceIdUnlock() {
+  localStorage.removeItem(BIOMETRIC_KEY);
+  biometric = { enabled: false, credentialId: "" };
+  renderSecurityUI();
+  showToast("Face ID 解锁已关闭");
+}
+function setLoginMessage(text) {
+  document.querySelector("#loginSubtitle").textContent = text;
+}
+function hideLoginScreen() {
+  document.querySelector("#loginScreen").classList.add("hidden");
+}
+function showLoginReady() {
+  setLoginMessage("你的资产、储蓄和 Notes 已准备好。");
+  document.querySelector("#loadingTrack").classList.add("hidden");
+  document.querySelector("#enterAppButton").classList.remove("hidden");
+  document.querySelector("#loginSettingsButton").classList.remove("hidden");
+}
+function bootLoginScreen() {
+  setTimeout(() => {
+    document.querySelector("#loadingTrack").classList.add("hidden");
+    if (biometric.enabled) {
+      setLoginMessage("已启用 Face ID 快速解锁。");
+      document.querySelector("#faceUnlockButton").classList.remove("hidden");
+      unlockWithFaceId();
+    } else {
+      showLoginReady();
+    }
+  }, 850);
 }
 function withUserId(rows) {
   const userId = cloud.session.user.id;
@@ -502,9 +610,18 @@ document.querySelector("#testSupabaseConnection").onclick = testSupabaseConnecti
 document.querySelector("#signOutButton").onclick = signOut;
 document.querySelector("#syncNowButton").onclick = () => syncToCloud();
 document.querySelector("#pullCloudButton").onclick = () => pullFromCloud();
+document.querySelector("#enableFaceIdButton").onclick = enableFaceIdUnlock;
+document.querySelector("#disableFaceIdButton").onclick = disableFaceIdUnlock;
+document.querySelector("#faceUnlockButton").onclick = unlockWithFaceId;
+document.querySelector("#enterAppButton").onclick = hideLoginScreen;
+document.querySelector("#loginSettingsButton").onclick = () => {
+  hideLoginScreen();
+  document.querySelector("#settingsDialog").showModal();
+};
 
 document.querySelector("#todayLabel").textContent = new Intl.DateTimeFormat("zh-CN", { month:"long", day:"numeric", weekday:"long" }).format(new Date());
 document.querySelector("#currencySelect").value = data.currency;
 render();
 initCloud();
+bootLoginScreen();
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js").catch(() => {});
