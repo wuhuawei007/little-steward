@@ -624,4 +624,16 @@ document.querySelector("#currencySelect").value = data.currency;
 render();
 initCloud();
 bootLoginScreen();
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js").catch(() => {});
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("./sw.js").then(registration => {
+    if (registration.waiting) registration.waiting.postMessage("SKIP_WAITING");
+    registration.addEventListener("updatefound", () => {
+      const worker = registration.installing;
+      if (worker) worker.addEventListener("statechange", () => {
+        if (worker.state === "installed" && navigator.serviceWorker.controller) {
+          worker.postMessage("SKIP_WAITING");
+        }
+      });
+    });
+  }).catch(() => {});
+}

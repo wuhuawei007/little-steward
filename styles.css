@@ -156,6 +156,7 @@ dialog[open] { animation: sheetUp .25s ease both; }
 .dialog-header { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 10px 0 18px; }
 .dialog-header h3 { margin: 0; font-size: 16px; }
 .dialog-header > :last-child { justify-self: end; }
+.app-version { margin: -6px 0 14px; color: var(--muted); text-align: center; font-size: 11px; }
 #formFields { display: grid; gap: 13px; }
 .field { display: grid; gap: 7px; }
 .field span { padding-left: 3px; color: var(--muted); font-size: 11px; font-weight: 650; }
