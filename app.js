@@ -118,6 +118,7 @@ function render() {
   const change = current - previous;
   document.querySelector("#netChange").textContent = `最近储蓄变化 ${change >= 0 ? "+" : ""}${money(change)}`;
   renderAllocation();
+  renderInsights(t);
   renderAccounts();
   renderSavings();
   renderNotes();
@@ -140,6 +141,25 @@ function renderAllocation() {
   document.querySelector("#allocationLegend").innerHTML = grouped.slice(0, 5).map(([type, value], i) => `
     <div class="legend-row"><i class="legend-dot" style="background:${colors[i % colors.length]}"></i><span>${labels[type] || type}</span><strong>${money(value, true)}</strong></div>
   `).join("") || `<p class="eyebrow">还没有资产</p>`;
+}
+
+function renderInsights(t = totals()) {
+  const latestSavings = [...data.savings].sort((a, b) => b.month.localeCompare(a.month));
+  const cash = data.accounts.filter(a => a.kind === "asset" && a.type === "cash").reduce((s, a) => s + Number(a.value), 0);
+  const liquid = data.accounts.filter(a => a.kind === "asset" && ["cash", "stock", "fund", "crypto"].includes(a.type)).reduce((s, a) => s + Number(a.value), 0);
+  const lastChange = (latestSavings[0]?.amount || 0) - (latestSavings[1]?.amount || 0);
+  const debtRatio = t.assets ? t.liabilities / t.assets : 0;
+  const liquidityRatio = t.assets ? liquid / t.assets : 0;
+  const score = Math.max(0, Math.min(100, Math.round(82 - debtRatio * 40 + liquidityRatio * 18 + (lastChange > 0 ? 6 : 0))));
+  const cards = [
+    { label: "资产健康分", value: `${score}`, hint: score >= 80 ? "结构稳健，继续保持" : "可继续降低负债或增加流动性" },
+    { label: "负债率", value: `${Math.round(debtRatio * 100)}%`, hint: "总负债 / 总资产" },
+    { label: "流动资产", value: money(liquid, true), hint: "现金、股票、基金与 Crypto" },
+    { label: "储蓄变化", value: `${lastChange >= 0 ? "+" : ""}${money(lastChange, true)}`, hint: `现金储备 ${money(cash, true)}` }
+  ];
+  document.querySelector("#insightGrid").innerHTML = cards.map(card => `
+    <article class="insight-card"><span>${card.label}</span><strong>${card.value}</strong><small>${card.hint}</small></article>
+  `).join("");
 }
 
 function accountRow(a, i) {
@@ -380,6 +400,43 @@ function disableFaceIdUnlock() {
   renderSecurityUI();
   showToast("Face ID 解锁已关闭");
 }
+function exportData() {
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    app: "little-steward",
+    version: "2026.06.17",
+    data
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `little-steward-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+  showToast("备份已导出");
+}
+async function importData(file) {
+  if (!file) return;
+  try {
+    const payload = JSON.parse(await file.text());
+    const imported = payload.data || payload;
+    if (!Array.isArray(imported.accounts) || !Array.isArray(imported.savings) || !Array.isArray(imported.notes)) {
+      throw new Error("备份文件格式不正确");
+    }
+    data = {
+      currency: imported.currency || "AUD",
+      accounts: imported.accounts,
+      savings: imported.savings,
+      notes: imported.notes
+    };
+    await persistData("备份已导入");
+  } catch (error) {
+    showToast(`导入失败：${error.message || error}`);
+  } finally {
+    document.querySelector("#importDataInput").value = "";
+  }
+}
 function setLoginMessage(text) {
   document.querySelector("#loginSubtitle").textContent = text;
 }
@@ -612,6 +669,8 @@ document.querySelector("#syncNowButton").onclick = () => syncToCloud();
 document.querySelector("#pullCloudButton").onclick = () => pullFromCloud();
 document.querySelector("#enableFaceIdButton").onclick = enableFaceIdUnlock;
 document.querySelector("#disableFaceIdButton").onclick = disableFaceIdUnlock;
+document.querySelector("#exportDataButton").onclick = exportData;
+document.querySelector("#importDataInput").onchange = e => importData(e.target.files[0]);
 document.querySelector("#faceUnlockButton").onclick = unlockWithFaceId;
 document.querySelector("#enterAppButton").onclick = hideLoginScreen;
 document.querySelector("#loginSettingsButton").onclick = () => {

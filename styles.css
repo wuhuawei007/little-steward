@@ -77,6 +77,8 @@ h2 { margin-bottom: 0; font-size: 22px; letter-spacing: -.035em; }
   box-shadow: 0 18px 45px rgba(20, 20, 25, .19);
 }
 .hero-card::after { content: ""; position: absolute; width: 190px; height: 190px; right: -90px; bottom: -115px; border: 1px solid rgba(255,255,255,.15); border-radius: 50%; box-shadow: 0 0 0 34px rgba(255,255,255,.025), 0 0 0 68px rgba(255,255,255,.018); }
+.hero-card::before { content: ""; position: absolute; inset: 0; background: linear-gradient(115deg, rgba(255,255,255,.16), transparent 38%, rgba(255,255,255,.08)); pointer-events: none; }
+.hero-card > * { position: relative; z-index: 1; }
 .hero-topline { display: flex; justify-content: space-between; align-items: center; color: rgba(255,255,255,.64); font-size: 13px; }
 .ghost-button { border: 0; color: rgba(255,255,255,.7); background: transparent; }
 .hero-amount { display: block; margin-top: 8px; font-size: clamp(37px, 10vw, 52px); letter-spacing: -.06em; }
@@ -85,6 +87,11 @@ h2 { margin-bottom: 0; font-size: 22px; letter-spacing: -.035em; }
 .hero-grid div { display: grid; gap: 5px; }
 .hero-grid span { color: rgba(255,255,255,.55); font-size: 12px; }
 .hero-grid strong { font-size: 17px; }
+.insight-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 11px; margin-top: 14px; }
+.insight-card { padding: 15px; border: 1px solid rgba(255,255,255,.7); border-radius: 21px; background: rgba(255,255,255,.72); box-shadow: 0 9px 25px rgba(30,30,40,.06); backdrop-filter: blur(18px); }
+.insight-card span { display: block; color: var(--muted); font-size: 11px; font-weight: 650; }
+.insight-card strong { display: block; margin-top: 7px; font-size: 19px; letter-spacing: -.035em; }
+.insight-card small { display: block; margin-top: 5px; color: var(--muted); font-size: 10px; line-height: 1.35; }
 .section-heading { display: flex; align-items: end; justify-content: space-between; margin: 30px 2px 13px; }
 .text-button { padding: 4px 0; border: 0; color: var(--blue); background: transparent; font-weight: 650; }
 .text-button.subtle { color: var(--muted); }
@@ -185,6 +192,11 @@ dialog[open] { animation: sheetUp .25s ease both; }
 .security-panel div { display: grid; gap: 4px; }
 .security-panel span { color: var(--muted); font-size: 11px; line-height: 1.45; }
 .security-panel .danger-button { margin-top: 0; }
+.backup-panel { display: grid; gap: 12px; margin-top: 14px; padding: 15px; border-radius: 20px; background: white; }
+.backup-panel div { display: grid; gap: 4px; }
+.backup-panel span { color: var(--muted); font-size: 11px; line-height: 1.45; }
+.import-label { display: grid; place-items: center; }
+.import-label input { display: none; }
 .toast { position: fixed; left: 50%; bottom: 110px; z-index: 30; padding: 10px 15px; border-radius: 99px; color: white; background: rgba(20,20,22,.88); opacity: 0; pointer-events: none; transform: translate(-50%, 8px); transition: .2s ease; font-size: 12px; }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 

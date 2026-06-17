@@ -1,4 +1,4 @@
-const CACHE = "little-steward-v5";
+const CACHE = "little-steward-v6";
 const FILES = ["./", "./index.html", "./styles.css", "./app.js", "./manifest.json", "./icon.svg"];
 self.addEventListener("message", event => {
   if (event.data === "SKIP_WAITING") self.skipWaiting();

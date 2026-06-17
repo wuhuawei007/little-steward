@@ -63,6 +63,8 @@
           </div>
         </article>
 
+        <div class="insight-grid" id="insightGrid"></div>
+
         <div class="section-heading">
           <div>
             <p class="eyebrow">财富分布</p>
@@ -209,6 +211,17 @@
       <div class="settings-row">
         <div><strong>本地保存</strong><span>数据仅保存在这台设备</span></div>
         <span class="status-dot"></span>
+      </div>
+      <div class="backup-panel">
+        <div>
+          <strong>数据备份</strong>
+          <span>导出 JSON 作为 Supabase 之外的第二保险</span>
+        </div>
+        <button class="secondary-button full-width" id="exportDataButton">导出备份 JSON</button>
+        <label class="secondary-button full-width import-label">
+          导入备份 JSON
+          <input id="importDataInput" type="file" accept="application/json,.json">
+        </label>
       </div>
       <button class="danger-button" id="resetData">恢复示例数据</button>
     </div>
