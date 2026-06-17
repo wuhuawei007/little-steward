@@ -48,17 +48,28 @@ create table if not exists public.little_steward_plans (
   primary key (user_id, id)
 );
 
+create table if not exists public.little_steward_vault (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  id text not null default 'default',
+  salt text not null,
+  payload jsonb not null,
+  updated_at timestamptz not null default now(),
+  primary key (user_id, id)
+);
+
 alter table public.little_steward_accounts enable row level security;
 alter table public.little_steward_savings enable row level security;
 alter table public.little_steward_notes enable row level security;
 alter table public.little_steward_settings enable row level security;
 alter table public.little_steward_plans enable row level security;
+alter table public.little_steward_vault enable row level security;
 
 drop policy if exists "Users manage own accounts" on public.little_steward_accounts;
 drop policy if exists "Users manage own savings" on public.little_steward_savings;
 drop policy if exists "Users manage own notes" on public.little_steward_notes;
 drop policy if exists "Users manage own settings" on public.little_steward_settings;
 drop policy if exists "Users manage own plans" on public.little_steward_plans;
+drop policy if exists "Users manage own vault" on public.little_steward_vault;
 
 create policy "Users manage own accounts"
 on public.little_steward_accounts
@@ -90,6 +101,13 @@ with check (auth.uid() = user_id);
 
 create policy "Users manage own plans"
 on public.little_steward_plans
+for all
+to authenticated
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+
+create policy "Users manage own vault"
+on public.little_steward_vault
 for all
 to authenticated
 using (auth.uid() = user_id)

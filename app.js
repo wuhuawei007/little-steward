@@ -1,6 +1,7 @@
 const STORAGE_KEY = "little-steward-v1";
 const SUPABASE_CONFIG_KEY = "little-steward-supabase-config";
 const BIOMETRIC_KEY = "little-steward-biometric";
+const ENCRYPTION_KEY = "little-steward-encryption";
 const colors = ["#4b73e8", "#ea8a3c", "#8671df", "#1f9d68", "#e2799c", "#575a63"];
 const icons = { property: "⌂", cash: "$", stock: "↗", fund: "F", crypto: "₿", loan: "−", other: "•" };
 const labels = { property: "房产", cash: "现金存款", stock: "股票", fund: "基金", crypto: "Crypto", loan: "贷款", other: "其他" };
@@ -64,6 +65,8 @@ let cloud = {
 };
 let localDataExists = Boolean(localStorage.getItem(STORAGE_KEY));
 let biometric = loadBiometricConfig();
+let encryption = loadEncryptionConfig();
+let vaultKey = null;
 
 function loadData() {
   try { return normalizeData(JSON.parse(localStorage.getItem(STORAGE_KEY)) || structuredClone(seedData)); }
@@ -99,6 +102,14 @@ function loadBiometricConfig() {
 function saveBiometricConfig(config) {
   biometric = config;
   localStorage.setItem(BIOMETRIC_KEY, JSON.stringify(config));
+}
+function loadEncryptionConfig() {
+  try { return JSON.parse(localStorage.getItem(ENCRYPTION_KEY)) || { enabled: false, salt: "" }; }
+  catch { return { enabled: false, salt: "" }; }
+}
+function saveEncryptionConfig(config) {
+  encryption = config;
+  localStorage.setItem(ENCRYPTION_KEY, JSON.stringify(config));
 }
 function saveSupabaseConfig(config) {
   cloud.config = config;
@@ -159,6 +170,7 @@ function render() {
   renderNotes();
   renderCloudUI();
   renderSecurityUI();
+  renderEncryptionUI();
 }
 
 function renderAllocation() {
@@ -345,6 +357,17 @@ function renderSecurityUI() {
   document.querySelector("#enableFaceIdButton").classList.toggle("hidden", !supported || biometric.enabled);
   document.querySelector("#disableFaceIdButton").classList.toggle("hidden", !biometric.enabled);
 }
+function renderEncryptionUI() {
+  const status = document.querySelector("#encryptionStatus");
+  const diagnostic = document.querySelector("#encryptionDiagnostic");
+  const enabled = encryption.enabled;
+  const unlocked = Boolean(vaultKey);
+  status.textContent = enabled ? (unlocked ? "已启用并已解锁，云端同步将写入密文 Vault。" : "已启用，等待输入密码解锁。") : "未启用";
+  document.querySelector("#enableEncryptionButton").classList.toggle("hidden", enabled && unlocked);
+  document.querySelector("#unlockEncryptionButton").classList.toggle("hidden", !enabled || unlocked);
+  document.querySelector("#disableEncryptionButton").classList.toggle("hidden", !enabled);
+  diagnostic.textContent = enabled ? "启用后，完整数据会以密文同步到 Supabase Vault。请务必记住密码。" : "密码不会上传。忘记密码将无法解密云端 Vault。";
+}
 
 function field(label, name, value = "", type = "text", extra = "") {
   return `<label class="field"><span>${label}</span><input name="${name}" type="${type}" value="${escapeHtml(String(value))}" ${extra}></label>`;
@@ -507,6 +530,80 @@ function bytesToBase64url(bytes) {
 function base64urlToBytes(value) {
   const padded = value.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((value.length + 3) % 4);
   return Uint8Array.from(atob(padded), c => c.charCodeAt(0));
+}
+function bytesToBase64(bytes) {
+  return btoa(String.fromCharCode(...new Uint8Array(bytes)));
+}
+function base64ToBytes(value) {
+  return Uint8Array.from(atob(value), c => c.charCodeAt(0));
+}
+async function deriveVaultKey(passphrase, saltBase64) {
+  const encoded = new TextEncoder().encode(passphrase);
+  const baseKey = await crypto.subtle.importKey("raw", encoded, "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt: base64ToBytes(saltBase64), iterations: 250000, hash: "SHA-256" },
+    baseKey,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"]
+  );
+}
+async function encryptPayload(payload) {
+  if (!vaultKey) throw new Error("加密未解锁");
+  const iv = randomBytes(12);
+  const encoded = new TextEncoder().encode(JSON.stringify(payload));
+  const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, vaultKey, encoded);
+  return { version: 1, kdf: "PBKDF2-SHA256-250000", cipher: "AES-GCM", iv: bytesToBase64(iv), ciphertext: bytesToBase64(ciphertext) };
+}
+async function decryptPayload(vault) {
+  if (!vaultKey) throw new Error("加密未解锁");
+  const decoded = await crypto.subtle.decrypt({ name: "AES-GCM", iv: base64ToBytes(vault.iv) }, vaultKey, base64ToBytes(vault.ciphertext));
+  return JSON.parse(new TextDecoder().decode(decoded));
+}
+function currentPassphrase() {
+  return document.querySelector("#encryptionPassphraseInput").value;
+}
+async function enableEncryption() {
+  const passphrase = currentPassphrase();
+  if (passphrase.length < 10) return showToast("加密密码至少 10 位");
+  const salt = bytesToBase64(randomBytes(16));
+  vaultKey = await deriveVaultKey(passphrase, salt);
+  saveEncryptionConfig({ enabled: true, salt });
+  document.querySelector("#encryptionPassphraseInput").value = "";
+  renderEncryptionUI();
+  if (cloud.session) {
+    await syncToCloud();
+    showToast("加密已启用并同步");
+  } else {
+    showToast("加密已启用，登录后会同步");
+  }
+}
+async function unlockEncryption() {
+  const passphrase = currentPassphrase();
+  if (!encryption.enabled || !encryption.salt) return showToast("还没有启用加密");
+  if (!passphrase) return showToast("请输入加密密码");
+  try {
+    vaultKey = await deriveVaultKey(passphrase, encryption.salt);
+    document.querySelector("#encryptionPassphraseInput").value = "";
+    renderEncryptionUI();
+    const remote = await fetchCloudData();
+    if (remote) {
+      data = normalizeData(remote);
+      saveLocalData();
+      render();
+    }
+    showToast("加密数据已解锁");
+  } catch {
+    vaultKey = null;
+    showToast("解锁失败，请检查密码");
+  }
+}
+function disableEncryption() {
+  localStorage.removeItem(ENCRYPTION_KEY);
+  encryption = { enabled: false, salt: "" };
+  vaultKey = null;
+  renderEncryptionUI();
+  showToast("已关闭本机加密设置");
 }
 async function enableFaceIdUnlock() {
   if (!window.PublicKeyCredential || !navigator.credentials || !window.isSecureContext) {
@@ -685,6 +782,11 @@ function applyPlanPayload(target, payload = {}) {
 }
 async function reconcileCloudOnLogin() {
   try {
+    if (encryption.enabled && !vaultKey) {
+      renderEncryptionUI();
+      showToast("云端加密已启用，请先解锁");
+      return;
+    }
     const remote = await fetchCloudData();
     if (!remote) return;
     const hasRemote = remote.accounts.length || remote.savings.length || remote.notes.length;
@@ -718,10 +820,19 @@ async function reconcileCloudOnLogin() {
 async function syncToCloud({ quiet = false } = {}) {
   const client = ensureSupabaseClient();
   if (!client || !cloud.session || cloud.syncing) return;
+  if (encryption.enabled && !vaultKey) {
+    if (!quiet) showToast("请先解锁加密数据");
+    return;
+  }
   cloud.syncing = true;
   renderCloudUI();
   try {
     const userId = cloud.session.user.id;
+    if (encryption.enabled && vaultKey) {
+      await syncVaultToCloud(client, userId);
+      if (!quiet) showToast("已加密同步到云端");
+      return;
+    }
     const accounts = withUserId(data.accounts.map(a => ({ ...a, value: Number(a.value) || 0 })));
     const savings = withUserId(data.savings.map(s => ({ ...s, amount: Number(s.amount) || 0 })));
     const notes = withUserId(data.notes);
@@ -742,6 +853,10 @@ async function syncToCloud({ quiet = false } = {}) {
 async function fetchCloudData() {
   const client = ensureSupabaseClient();
   if (!client || !cloud.session) return null;
+  if (encryption.enabled && vaultKey) {
+    const vault = await fetchVaultFromCloud(client);
+    if (vault) return normalizeData(await decryptPayload(vault));
+  }
   const [accountsRes, savingsRes, notesRes, settingsRes] = await Promise.all([
     client.from("little_steward_accounts").select("id,name,type,kind,value,note,updated"),
     client.from("little_steward_savings").select("id,month,amount,note"),
@@ -757,6 +872,28 @@ async function fetchCloudData() {
   };
   const plans = await fetchPlansFromCloud(client);
   return plans ? applyPlanPayload(remote, plans) : normalizeData(remote);
+}
+async function syncVaultToCloud(client, userId) {
+  const encrypted = await encryptPayload(normalizeData(data));
+  const { error } = await client.from("little_steward_vault").upsert({
+    user_id: userId,
+    id: "default",
+    salt: encryption.salt,
+    payload: encrypted,
+    updated_at: new Date().toISOString()
+  });
+  if (error) throw error;
+}
+async function fetchVaultFromCloud(client) {
+  const { data: row, error } = await client.from("little_steward_vault").select("salt,payload").eq("id", "default").maybeSingle();
+  if (error) return null;
+  if (row?.salt && row.salt !== encryption.salt) {
+    saveEncryptionConfig({ enabled: true, salt: row.salt });
+    vaultKey = null;
+    renderEncryptionUI();
+    throw new Error("云端 Vault 使用另一个密码盐，请重新输入密码解锁");
+  }
+  return row?.payload || null;
 }
 async function syncPlansToCloud(client, userId) {
   const { error } = await client.from("little_steward_plans").upsert({
@@ -976,6 +1113,9 @@ document.querySelector("#pullCloudButton").onclick = () => pullFromCloud();
 document.querySelector("#refreshPricesButton").onclick = refreshCryptoPrices;
 document.querySelector("#enableFaceIdButton").onclick = enableFaceIdUnlock;
 document.querySelector("#disableFaceIdButton").onclick = disableFaceIdUnlock;
+document.querySelector("#enableEncryptionButton").onclick = enableEncryption;
+document.querySelector("#unlockEncryptionButton").onclick = unlockEncryption;
+document.querySelector("#disableEncryptionButton").onclick = disableEncryption;
 document.querySelector("#exportDataButton").onclick = exportData;
 document.querySelector("#importDataInput").onchange = e => importData(e.target.files[0]);
 document.querySelector("#faceUnlockButton").onclick = unlockWithFaceId;
