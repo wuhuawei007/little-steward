@@ -3,15 +3,62 @@ const SUPABASE_CONFIG_KEY = "little-steward-supabase-config";
 const BIOMETRIC_KEY = "little-steward-biometric";
 const ENCRYPTION_KEY = "little-steward-encryption";
 const MARKET_CONFIG_KEY = "little-steward-market-config";
+const LANGUAGE_KEY = "little-steward-language";
 const DEFAULT_ALPHA_VANTAGE_KEY = "SYC96IVAMPXH47F9";
 const DEFAULT_FINNHUB_TOKEN = "";
 const colors = ["#4b73e8", "#ea8a3c", "#8671df", "#1f9d68", "#e2799c", "#575a63"];
 const icons = { property: "⌂", cash: "$", stock: "↗", fund: "F", crypto: "₿", loan: "−", other: "•" };
-const labels = { property: "房产", cash: "现金存款", stock: "股票", fund: "基金", crypto: "Crypto", loan: "贷款", other: "其他" };
+const typeLabels = {
+  zh: { property: "房产", cash: "现金存款", stock: "股票", fund: "基金", crypto: "Crypto", loan: "贷款", other: "其他" },
+  en: { property: "Property", cash: "Cash", stock: "Stocks", fund: "Funds", crypto: "Crypto", loan: "Loans", other: "Other" }
+};
+const labels = typeLabels.zh;
 const marketSymbols = [
   ["AAPL", "Apple"], ["MSFT", "Microsoft"], ["NVDA", "Nvidia"], ["TSLA", "Tesla"], ["GOOGL", "Alphabet"], ["AMZN", "Amazon"], ["META", "Meta"],
   ["VOO", "Vanguard S&P 500 ETF"], ["VTI", "Vanguard Total Stock Market ETF"], ["QQQ", "Nasdaq 100 ETF"], ["IVV", "iShares S&P 500 ETF"], ["SPY", "SPDR S&P 500 ETF"]
 ];
+const i18n = {
+  zh: {
+    appName: "小管家", appTitle: "小管家 · 资产与储蓄", version: "版本：2026.06.18 登录状态 + 双语",
+    welcome: "欢迎回来", waking: "正在唤醒你的小管家...", faceUnlock: "使用 Face ID 解锁", enterApp: "进入小管家", loginSettings: "设置 Supabase 登录",
+    pageOverview: "我的资产", pageAssets: "资产与负债", pageSavings: "储蓄记录", pagePlanning: "计划中心", pagePrices: "价格中心", pageNotes: "Notes",
+    notSignedIn: "未登录", cloudPending: "等待登录", cloudSignedIn: "已登录", syncingShort: "同步中",
+    netWorth: "净资产", monthlyChange: "最近储蓄变化", totalAssets: "总资产", totalLiabilities: "总负债",
+    wealthDistribution: "财富分布", portfolio: "资产组合", add: "添加", recentUpdates: "最近更新", myAccounts: "我的账户", viewAll: "查看全部",
+    all: "全部", assets: "资产", liabilities: "负债", addAsset: "＋ 添加资产或负债", yearlySaved: "今年已储蓄", monthEnd: "月末记录", savingsBalance: "储蓄账户余额", record: "记录", addSaving: "＋ 记录本月余额",
+    timeline: "净资产趋势", goals: "财富目标", budget: "每月预算", mortgage: "房贷测算", edit: "编辑", addSnapshot: "记录快照",
+    marketSync: "Market Sync", priceTracking: "价格追踪", priceSummaryStatic: "管理股票、基金和 Crypto 的持仓价格。", refreshPrices: "刷新价格", watchlist: "Watchlist", holdingsPrice: "持仓价格", addPrice: "＋ 添加价格追踪",
+    notesEyebrow: "财务随手记", notesIntro: "记下重要决定，<br>也记下生活。", navOverview: "总览", navAssets: "资产", navSavings: "储蓄", navPlanning: "计划", navPrices: "价格",
+    settings: "设置", done: "完成", displayCurrency: "显示货币", language: "语言", cloudSync: "Supabase 云同步", sync: "同步", saveSupabase: "保存 Supabase 配置", testSupabase: "测试 Supabase 连接", loginEmail: "登录邮箱", sendLoginLink: "发送登录链接", pullCloud: "从云端恢复到本机", signOut: "退出登录",
+    faceId: "Face ID 快速解锁", enableFaceId: "启用 Face ID 解锁", disableFaceId: "关闭 Face ID 解锁", marketApi: "行情 API", saveMarket: "保存行情设置", encryption: "云端数据加密", passphrase: "加密密码", enableEncryption: "启用加密并同步", unlockEncryption: "解锁加密数据", disableEncryption: "关闭本机加密设置", localSave: "本地保存", localSaveHint: "数据仅保存在这台设备", backup: "数据备份", backupHint: "导出 JSON 作为 Supabase 之外的第二保险", exportBackup: "导出备份 JSON", importBackup: "导入备份 JSON", reset: "恢复示例数据",
+    cloudUnconfigured: "未配置", cloudReady: "已配置，等待登录", cloudSyncing: "正在同步...", cloudReadySync: "已登录并可同步", signedInAs: "已登录：{email}", configuredHint: "配置保存后，可以先测试连接。",
+    notConfiguredFinnhub: "未配置 Finnhub，{fx}。", configuredFinnhub: "Finnhub 已配置，{fx}。", fxPending: "汇率待刷新",
+    healthScore: "资产健康分", healthGood: "结构稳健，继续保持", healthImprove: "可继续降低负债或增加流动性", debtRatio: "负债率", debtHint: "总负债 / 总资产", liquidAssets: "流动资产", liquidHint: "现金、股票、基金与 Crypto", savingsChange: "储蓄变化", cashReserve: "现金储备",
+    updated: "更新", emptyRecords: "这里还没有记录", firstSaving: "记录第一个月末余额吧", noNotes: "还没有 Notes", firstNote: "记下你的第一个财务决定。", noGoals: "还没有财富目标", noPrices: "还没有价格追踪",
+    autoPrices: "{count} 个价格可自动刷新{updated}。", lastUpdated: "，最近更新 {time}", autoPriceHint: "添加 CoinGecko ID 或 Finnhub 股票代码后即可自动刷新。", linkedHolding: "已关联持仓", watchOnly: "未持仓", quantity: "数量", pendingRefresh: "◇ 待刷新", manualPrice: "手动价格",
+    cancel: "取消", save: "保存", deleteRecord: "删除此记录"
+  },
+  en: {
+    appName: "Little Steward", appTitle: "Little Steward · Assets & Savings", version: "Version: 2026.06.18 Login status + bilingual",
+    welcome: "Welcome Back", waking: "Waking up your Little Steward...", faceUnlock: "Unlock with Face ID", enterApp: "Enter Little Steward", loginSettings: "Set up Supabase login",
+    pageOverview: "My Assets", pageAssets: "Assets & Liabilities", pageSavings: "Savings Records", pagePlanning: "Planning", pagePrices: "Prices", pageNotes: "Notes",
+    notSignedIn: "Not signed in", cloudPending: "Login pending", cloudSignedIn: "Signed in", syncingShort: "Syncing",
+    netWorth: "Net Worth", monthlyChange: "Latest savings change", totalAssets: "Total Assets", totalLiabilities: "Total Liabilities",
+    wealthDistribution: "Wealth Mix", portfolio: "Portfolio", add: "Add", recentUpdates: "Recent Updates", myAccounts: "My Accounts", viewAll: "View All",
+    all: "All", assets: "Assets", liabilities: "Liabilities", addAsset: "+ Add asset or liability", yearlySaved: "Saved This Year", monthEnd: "Month-End", savingsBalance: "Savings Balance", record: "Record", addSaving: "+ Record month-end balance",
+    timeline: "Net Worth Timeline", goals: "Wealth Goals", budget: "Monthly Budget", mortgage: "Mortgage Planner", edit: "Edit", addSnapshot: "Add Snapshot",
+    marketSync: "Market Sync", priceTracking: "Price Tracking", priceSummaryStatic: "Track holding prices for stocks, funds, and crypto.", refreshPrices: "Refresh Prices", watchlist: "Watchlist", holdingsPrice: "Holding Prices", addPrice: "+ Add price watch",
+    notesEyebrow: "Finance Notes", notesIntro: "Capture key decisions,<br>and the life around them.", navOverview: "Home", navAssets: "Assets", navSavings: "Savings", navPlanning: "Plan", navPrices: "Prices",
+    settings: "Settings", done: "Done", displayCurrency: "Display Currency", language: "Language", cloudSync: "Supabase Cloud Sync", sync: "Sync", saveSupabase: "Save Supabase Config", testSupabase: "Test Supabase Connection", loginEmail: "Login Email", sendLoginLink: "Send Login Link", pullCloud: "Restore From Cloud", signOut: "Sign Out",
+    faceId: "Face ID Quick Unlock", enableFaceId: "Enable Face ID Unlock", disableFaceId: "Disable Face ID Unlock", marketApi: "Market API", saveMarket: "Save Market Settings", encryption: "Cloud Data Encryption", passphrase: "Encryption Password", enableEncryption: "Enable Encryption & Sync", unlockEncryption: "Unlock Encrypted Data", disableEncryption: "Disable Local Encryption", localSave: "Local Save", localSaveHint: "Data is also kept on this device", backup: "Data Backup", backupHint: "Export JSON as a second safety net outside Supabase", exportBackup: "Export Backup JSON", importBackup: "Import Backup JSON", reset: "Restore Demo Data",
+    cloudUnconfigured: "Not configured", cloudReady: "Configured, waiting for login", cloudSyncing: "Syncing...", cloudReadySync: "Signed in and ready to sync", signedInAs: "Signed in: {email}", configuredHint: "After saving config, test the connection first.",
+    notConfiguredFinnhub: "Finnhub not configured, {fx}.", configuredFinnhub: "Finnhub configured, {fx}.", fxPending: "FX pending",
+    healthScore: "Health Score", healthGood: "Structure looks solid. Keep going.", healthImprove: "Consider lowering debt or adding liquidity.", debtRatio: "Debt Ratio", debtHint: "Total liabilities / total assets", liquidAssets: "Liquid Assets", liquidHint: "Cash, stocks, funds, and crypto", savingsChange: "Savings Change", cashReserve: "Cash reserve",
+    updated: "updated", emptyRecords: "No records yet", firstSaving: "Record your first month-end balance", noNotes: "No Notes Yet", firstNote: "Write down your first financial decision.", noGoals: "No wealth goals yet", noPrices: "No price watches yet",
+    autoPrices: "{count} prices can auto-refresh{updated}.", lastUpdated: ", last updated {time}", autoPriceHint: "Add a CoinGecko ID or Finnhub stock symbol to enable auto-refresh.", linkedHolding: "Linked holding", watchOnly: "Watch only", quantity: "Qty", pendingRefresh: "◇ Pending", manualPrice: "Manual price",
+    cancel: "Cancel", save: "Save", deleteRecord: "Delete this record"
+  }
+};
 
 const seedData = {
   currency: "AUD",
@@ -62,12 +109,13 @@ let data = loadData();
 let privacy = false;
 let activeFilter = "all";
 let editorState = null;
+let language = loadLanguage();
 let cloud = {
   client: null,
   session: null,
   syncing: false,
   config: loadSupabaseConfig(),
-  diagnostic: "配置保存后，可以先测试连接。",
+  diagnostic: tr("configuredHint"),
   diagnosticType: ""
 };
 let localDataExists = Boolean(localStorage.getItem(STORAGE_KEY));
@@ -123,6 +171,20 @@ function loadMarketConfig() {
   try { return normalizeMarketConfig(JSON.parse(localStorage.getItem(MARKET_CONFIG_KEY)) || {}); }
   catch { return normalizeMarketConfig({}); }
 }
+function loadLanguage() {
+  const saved = localStorage.getItem(LANGUAGE_KEY);
+  return saved === "en" ? "en" : "zh";
+}
+function tr(key, vars = {}) {
+  const template = i18n[language]?.[key] || i18n.zh[key] || key;
+  return Object.entries(vars).reduce((text, [name, value]) => text.replaceAll(`{${name}}`, value), template);
+}
+function currentLocale() {
+  return language === "en" ? "en-US" : "zh-CN";
+}
+function typeLabel(type) {
+  return typeLabels[language]?.[type] || typeLabels.zh[type] || type;
+}
 function normalizeMarketConfig(config) {
   return {
     alphaVantageKey: config.alphaVantageKey || DEFAULT_ALPHA_VANTAGE_KEY,
@@ -149,7 +211,7 @@ function money(value, compact = false) {
 }
 function moneyInCurrency(value, currency = data.currency, compact = false) {
   if (privacy) return "••••••";
-  return new Intl.NumberFormat("zh-CN", {
+  return new Intl.NumberFormat(currentLocale(), {
     style: "currency", currency, maximumFractionDigits: 0,
     notation: compact ? "compact" : "standard"
   }).format(value);
@@ -160,10 +222,10 @@ function totals() {
   return { assets, liabilities, net: assets - liabilities };
 }
 function dateLabel(date) {
-  return new Intl.DateTimeFormat("zh-CN", { month: "short", day: "numeric" }).format(new Date(date + "T12:00:00"));
+  return new Intl.DateTimeFormat(currentLocale(), { month: "short", day: "numeric" }).format(new Date(date + "T12:00:00"));
 }
 function monthLabel(month) {
-  return new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "long" }).format(new Date(month + "-01T12:00:00"));
+  return new Intl.DateTimeFormat(currentLocale(), { year: "numeric", month: "long" }).format(new Date(month + "-01T12:00:00"));
 }
 function showToast(text) {
   const el = document.querySelector("#toast");
@@ -174,6 +236,88 @@ function showToast(text) {
 }
 function escapeHtml(str = "") {
   return String(str).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;" }[c]));
+}
+function setText(selector, key) {
+  const el = document.querySelector(selector);
+  if (el) el.textContent = tr(key);
+}
+function applyStaticLanguage() {
+  document.documentElement.lang = language === "en" ? "en" : "zh-CN";
+  document.title = tr("appTitle");
+  document.querySelector('meta[name="apple-mobile-web-app-title"]')?.setAttribute("content", tr("appName"));
+  document.querySelector("#todayLabel").textContent = new Intl.DateTimeFormat(currentLocale(), { month:"long", day:"numeric", weekday:"long" }).format(new Date());
+  const loginSubtitle = document.querySelector("#loginSubtitle");
+  if (loginSubtitle && !document.querySelector("#loadingTrack").classList.contains("hidden")) loginSubtitle.textContent = tr("waking");
+  document.querySelector("#languageSelect").value = language;
+  document.querySelector("#currencySelect").value = data.currency;
+  const activePage = document.querySelector(".bottom-nav button.active")?.dataset.page || "overviewPage";
+  document.querySelector("#pageTitle").textContent = pageTitle(activePage);
+  const textMap = [
+    ["#faceUnlockButton", "faceUnlock"], ["#enterAppButton", "enterApp"], ["#loginSettingsButton", "loginSettings"],
+    [".hero-topline span", "netWorth"], [".hero-grid div:first-child span", "totalAssets"], [".hero-grid div:last-child span", "totalLiabilities"],
+    ["#overviewPage .section-heading:nth-of-type(1) .eyebrow", "wealthDistribution"], ["#overviewPage .section-heading:nth-of-type(1) h2", "portfolio"], ["#overviewPage .section-heading:nth-of-type(1) button", "add"],
+    ["#overviewPage .section-heading:nth-of-type(2) .eyebrow", "recentUpdates"], ["#overviewPage .section-heading:nth-of-type(2) h2", "myAccounts"], ["#overviewPage .section-heading:nth-of-type(2) button", "viewAll"],
+    ["#assetSegment button[data-filter='all']", "all"], ["#assetSegment button[data-filter='asset']", "assets"], ["#assetSegment button[data-filter='liability']", "liabilities"],
+    ["#assetsPage .summary-strip span", "netWorth"], ["#assetsPage .primary-button", "addAsset"],
+    ["#savingsPage .savings-hero .eyebrow", "yearlySaved"], ["#savingsPage .section-heading .eyebrow", "monthEnd"], ["#savingsPage .section-heading h2", "savingsBalance"], ["#savingsPage .section-heading button", "record"], ["#savingsPage .primary-button", "addSaving"],
+    ["#planningPage .trend-card .eyebrow", "timeline"], ["#planningPage .trend-card h2", "timeline"], ["#planningPage .trend-card button", "addSnapshot"],
+    ["#planningPage .section-heading:nth-of-type(1) .eyebrow", "goals"], ["#planningPage .section-heading:nth-of-type(1) h2", "goals"], ["#planningPage .section-heading:nth-of-type(1) button", "add"],
+    ["#planningPage .section-heading:nth-of-type(2) .eyebrow", "budget"], ["#planningPage .section-heading:nth-of-type(2) h2", "budget"], ["#planningPage .section-heading:nth-of-type(2) button", "edit"],
+    ["#planningPage .section-heading:nth-of-type(3) .eyebrow", "mortgage"], ["#planningPage .section-heading:nth-of-type(3) h2", "mortgage"], ["#planningPage .section-heading:nth-of-type(3) button", "edit"],
+    ["#pricesPage .price-hero .eyebrow", "marketSync"], ["#pricesPage .price-hero h2", "priceTracking"], ["#refreshPricesButton", "refreshPrices"], ["#pricesPage .section-heading .eyebrow", "watchlist"], ["#pricesPage .section-heading h2", "holdingsPrice"], ["#pricesPage .section-heading button", "add"], ["#pricesPage > .primary-button", "addPrice"],
+    ["#notesPage .notes-intro .eyebrow", "notesEyebrow"], [".bottom-nav button[data-page='overviewPage']", "navOverview"], [".bottom-nav button[data-page='assetsPage']", "navAssets"], [".bottom-nav button[data-page='savingsPage']", "navSavings"], [".bottom-nav button[data-page='planningPage']", "navPlanning"], [".bottom-nav button[data-page='pricesPage']", "navPrices"],
+    ["#settingsDialog .dialog-header h3", "settings"], ["#closeSettings", "done"], [".app-version", "version"], ["#languageLabel", "language"],
+    ["#saveSupabaseConfig", "saveSupabase"], ["#testSupabaseConnection", "testSupabase"], ["#sendLoginLink", "sendLoginLink"], ["#pullCloudButton", "pullCloud"], ["#signOutButton", "signOut"],
+    ["#enableFaceIdButton", "enableFaceId"], ["#disableFaceIdButton", "disableFaceId"], ["#saveMarketConfigButton", "saveMarket"], ["#enableEncryptionButton", "enableEncryption"], ["#unlockEncryptionButton", "unlockEncryption"], ["#disableEncryptionButton", "disableEncryption"],
+    ["#exportDataButton", "exportBackup"], ["#importBackupText", "importBackup"], ["#resetData", "reset"], ["#cancelDialog", "cancel"], ["#editorForm button[type='submit']", "save"], ["#deleteButton", "deleteRecord"],
+    [".login-card h2", "welcome"]
+  ];
+  textMap.forEach(([selector, key]) => setText(selector, key));
+  const setHeading = (root, index, eyebrowKey, titleKey, buttonKey) => {
+    const heading = document.querySelectorAll(`${root} .section-heading`)[index];
+    if (!heading) return;
+    const eyebrow = heading.querySelector(".eyebrow");
+    const title = heading.querySelector("h2");
+    const button = heading.querySelector("button");
+    if (eyebrow) eyebrow.textContent = tr(eyebrowKey);
+    if (title) title.textContent = tr(titleKey);
+    if (button && buttonKey) button.textContent = tr(buttonKey);
+  };
+  setHeading("#overviewPage", 0, "wealthDistribution", "portfolio", "add");
+  setHeading("#overviewPage", 1, "recentUpdates", "myAccounts", "viewAll");
+  setHeading("#savingsPage", 0, "monthEnd", "savingsBalance", "record");
+  setHeading("#planningPage", 0, "goals", "goals", "add");
+  setHeading("#planningPage", 1, "budget", "budget", "edit");
+  setHeading("#planningPage", 2, "mortgage", "mortgage", "edit");
+  setHeading("#pricesPage", 0, "watchlist", "holdingsPrice", "add");
+  document.querySelector(".notes-intro h2").innerHTML = tr("notesIntro");
+  const navIcons = { overviewPage: "⌂", assetsPage: "▦", savingsPage: "↗", planningPage: "◎", pricesPage: "$" };
+  document.querySelectorAll(".bottom-nav button").forEach(button => {
+    const page = button.dataset.page;
+    button.innerHTML = `<span>${navIcons[page]}</span>${tr({ overviewPage:"navOverview", assetsPage:"navAssets", savingsPage:"navSavings", planningPage:"navPlanning", pricesPage:"navPrices" }[page])}`;
+  });
+  document.querySelectorAll(".field > span").forEach(span => {
+    const text = span.textContent.trim();
+    const replacements = {
+      "显示货币": tr("displayCurrency"), "Display Currency": tr("displayCurrency"),
+      "语言": tr("language"), "Language": tr("language"),
+      "登录邮箱": tr("loginEmail"), "Login Email": tr("loginEmail"),
+      "加密密码": tr("passphrase"), "Encryption Password": tr("passphrase")
+    };
+    if (replacements[text]) span.textContent = replacements[text];
+  });
+  document.querySelector(".cloud-header strong").textContent = tr("cloudSync");
+  document.querySelector("#syncNowButton").textContent = tr("sync");
+  document.querySelector(".security-panel strong").textContent = tr("faceId");
+  document.querySelector(".market-panel strong").textContent = tr("marketApi");
+  document.querySelector(".encryption-panel strong").textContent = tr("encryption");
+  const rows = document.querySelectorAll(".settings-row div, .backup-panel div");
+  if (rows[0]) rows[0].innerHTML = `<strong>${tr("localSave")}</strong><span>${tr("localSaveHint")}</span>`;
+  if (rows[1]) rows[1].innerHTML = `<strong>${tr("backup")}</strong><span>${tr("backupHint")}</span>`;
+  updateCloudLoginChip();
+}
+function pageTitle(id) {
+  return ({ overviewPage: tr("pageOverview"), assetsPage: tr("pageAssets"), savingsPage: tr("pageSavings"), planningPage: tr("pagePlanning"), pricesPage: tr("pagePrices"), notesPage: tr("pageNotes") })[id] || tr("pageOverview");
 }
 
 function render() {
@@ -188,7 +332,7 @@ function render() {
   const current = sortedSavings[0]?.amount || 0;
   const previous = sortedSavings[1]?.amount || 0;
   const change = current - previous;
-  document.querySelector("#netChange").textContent = `最近储蓄变化 ${change >= 0 ? "+" : ""}${money(change)}`;
+  document.querySelector("#netChange").textContent = `${tr("monthlyChange")} ${change >= 0 ? "+" : ""}${money(change)}`;
   renderAllocation();
   renderInsights(t);
   renderAccounts();
@@ -200,6 +344,7 @@ function render() {
   renderSecurityUI();
   renderMarketUI();
   renderEncryptionUI();
+  applyStaticLanguage();
 }
 
 function renderAllocation() {
@@ -214,9 +359,10 @@ function renderAllocation() {
   });
   document.querySelector("#allocationDonut").style.background = `conic-gradient(${stops.join(",") || "#ddd 0 100%"})`;
   document.querySelector("#assetCount").textContent = assets.length;
+  document.querySelector("#assetCount").dataset.label = language === "en" ? "assets" : "项资产";
   document.querySelector("#allocationLegend").innerHTML = grouped.slice(0, 5).map(([type, value], i) => `
-    <div class="legend-row"><i class="legend-dot" style="background:${colors[i % colors.length]}"></i><span>${labels[type] || type}</span><strong>${money(value, true)}</strong></div>
-  `).join("") || `<p class="eyebrow">还没有资产</p>`;
+    <div class="legend-row"><i class="legend-dot" style="background:${colors[i % colors.length]}"></i><span>${typeLabel(type)}</span><strong>${money(value, true)}</strong></div>
+  `).join("") || `<p class="eyebrow">${tr("emptyRecords")}</p>`;
 }
 
 function renderInsights(t = totals()) {
@@ -228,10 +374,10 @@ function renderInsights(t = totals()) {
   const liquidityRatio = t.assets ? liquid / t.assets : 0;
   const score = Math.max(0, Math.min(100, Math.round(82 - debtRatio * 40 + liquidityRatio * 18 + (lastChange > 0 ? 6 : 0))));
   const cards = [
-    { label: "资产健康分", value: `${score}`, hint: score >= 80 ? "结构稳健，继续保持" : "可继续降低负债或增加流动性" },
-    { label: "负债率", value: `${Math.round(debtRatio * 100)}%`, hint: "总负债 / 总资产" },
-    { label: "流动资产", value: money(liquid, true), hint: "现金、股票、基金与 Crypto" },
-    { label: "储蓄变化", value: `${lastChange >= 0 ? "+" : ""}${money(lastChange, true)}`, hint: `现金储备 ${money(cash, true)}` }
+    { label: tr("healthScore"), value: `${score}`, hint: score >= 80 ? tr("healthGood") : tr("healthImprove") },
+    { label: tr("debtRatio"), value: `${Math.round(debtRatio * 100)}%`, hint: tr("debtHint") },
+    { label: tr("liquidAssets"), value: money(liquid, true), hint: tr("liquidHint") },
+    { label: tr("savingsChange"), value: `${lastChange >= 0 ? "+" : ""}${money(lastChange, true)}`, hint: `${tr("cashReserve")} ${money(cash, true)}` }
   ];
   document.querySelector("#insightGrid").innerHTML = cards.map(card => `
     <article class="insight-card"><span>${card.label}</span><strong>${card.value}</strong><small>${card.hint}</small></article>
@@ -241,15 +387,15 @@ function renderInsights(t = totals()) {
 function accountRow(a, i) {
   return `<button class="account-row" data-edit-account="${a.id}">
     <span class="account-icon" style="background:${a.kind === "liability" ? "#d95050" : colors[i % colors.length]}">${icons[a.type] || "•"}</span>
-    <span class="account-copy"><strong>${escapeHtml(a.name)}</strong><span>${escapeHtml(a.note || labels[a.type])}</span></span>
-    <span class="account-value"><strong class="${a.kind === "liability" ? "liability-amount" : ""}">${a.kind === "liability" ? "−" : ""}${money(a.value)}</strong><span>${dateLabel(a.updated)} 更新</span></span>
+    <span class="account-copy"><strong>${escapeHtml(a.name)}</strong><span>${escapeHtml(a.note || typeLabel(a.type))}</span></span>
+    <span class="account-value"><strong class="${a.kind === "liability" ? "liability-amount" : ""}">${a.kind === "liability" ? "−" : ""}${money(a.value)}</strong><span>${dateLabel(a.updated)} ${tr("updated")}</span></span>
   </button>`;
 }
 function renderAccounts() {
   const recent = [...data.accounts].sort((a,b) => b.updated.localeCompare(a.updated)).slice(0, 4);
   document.querySelector("#recentAccounts").innerHTML = recent.map(accountRow).join("");
   const filtered = data.accounts.filter(a => activeFilter === "all" || a.kind === activeFilter);
-  document.querySelector("#allAccounts").innerHTML = filtered.map(accountRow).join("") || `<div class="card"><p class="eyebrow">这里还没有记录</p></div>`;
+  document.querySelector("#allAccounts").innerHTML = filtered.map(accountRow).join("") || `<div class="card"><p class="eyebrow">${tr("emptyRecords")}</p></div>`;
 }
 function renderSavings() {
   const sorted = [...data.savings].sort((a,b) => b.month.localeCompare(a.month));
@@ -264,12 +410,12 @@ function renderSavings() {
     <button class="timeline-item" data-edit-saving="${s.id}" style="border:0;background:transparent;padding:0;text-align:left;color:inherit">
       <span class="timeline-mark"></span>
       <span class="timeline-content"><span class="timeline-top"><strong>${monthLabel(s.month)}</strong><strong>${money(s.amount)}</strong></span>${s.note ? `<p>${escapeHtml(s.note)}</p>` : ""}</span>
-    </button>`).join("") || `<div class="card"><p class="eyebrow">记录第一个月末余额吧</p></div>`;
+    </button>`).join("") || `<div class="card"><p class="eyebrow">${tr("firstSaving")}</p></div>`;
 }
 function renderNotes() {
   document.querySelector("#notesGrid").innerHTML = [...data.notes].sort((a,b) => b.date.localeCompare(a.date)).map(n => `
     <button class="note-card" data-edit-note="${n.id}"><span>${dateLabel(n.date)}</span><h3>${escapeHtml(n.title)}</h3><p>${escapeHtml(n.body)}</p></button>
-  `).join("") || `<div class="note-card"><h3>还没有 Notes</h3><p>记下你的第一个财务决定。</p></div>`;
+  `).join("") || `<div class="note-card"><h3>${tr("noNotes")}</h3><p>${tr("firstNote")}</p></div>`;
 }
 function renderPlanning() {
   renderTrend();
@@ -305,11 +451,11 @@ function renderGoals() {
     const current = currentForGoal(goal.currentType);
     const pct = Math.max(0, Math.min(100, goal.target ? current / Number(goal.target) * 100 : 0));
     return `<button class="goal-card" data-edit-goal="${goal.id}">
-      <span class="goal-top"><strong>${escapeHtml(goal.name)}</strong><span>${goal.due || "未设期限"}</span></span>
+      <span class="goal-top"><strong>${escapeHtml(goal.name)}</strong><span>${goal.due || (language === "en" ? "No deadline" : "未设期限")}</span></span>
       <span class="progress-track"><i style="width:${pct}%"></i></span>
       <span class="goal-top"><span>${money(current)} / ${money(goal.target)}</span><span>${Math.round(pct)}%</span></span>
     </button>`;
-  }).join("") || `<div class="card"><p class="eyebrow">还没有财富目标</p></div>`;
+  }).join("") || `<div class="card"><p class="eyebrow">${tr("noGoals")}</p></div>`;
 }
 function renderBudget() {
   const b = data.budget || {};
@@ -320,10 +466,10 @@ function renderBudget() {
   const free = income - fixed - flex;
   const rate = income ? Math.round(target / income * 100) : 0;
   document.querySelector("#budgetCard").innerHTML = `<div class="metric-grid">
-    <div class="metric-tile"><span>月收入</span><strong>${money(income)}</strong></div>
-    <div class="metric-tile"><span>目标储蓄率</span><strong>${rate}%</strong></div>
-    <div class="metric-tile"><span>固定支出</span><strong>${money(fixed)}</strong></div>
-    <div class="metric-tile"><span>可支配结余</span><strong>${money(free)}</strong></div>
+    <div class="metric-tile"><span>${language === "en" ? "Monthly income" : "月收入"}</span><strong>${money(income)}</strong></div>
+    <div class="metric-tile"><span>${language === "en" ? "Target saving rate" : "目标储蓄率"}</span><strong>${rate}%</strong></div>
+    <div class="metric-tile"><span>${language === "en" ? "Fixed expenses" : "固定支出"}</span><strong>${money(fixed)}</strong></div>
+    <div class="metric-tile"><span>${language === "en" ? "Free cash flow" : "可支配结余"}</span><strong>${money(free)}</strong></div>
   </div>`;
 }
 function renderLoanPlan() {
@@ -335,10 +481,10 @@ function renderLoanPlan() {
   const monthlyInterest = Math.max(0, principal - offset) * rate / 100 / 12;
   const principalPaydown = Math.max(0, repayment - monthlyInterest);
   document.querySelector("#loanPlanCard").innerHTML = `<div class="metric-grid">
-    <div class="metric-tile"><span>贷款本金</span><strong>${money(principal)}</strong></div>
-    <div class="metric-tile"><span>年利率</span><strong>${rate.toFixed(2)}%</strong></div>
-    <div class="metric-tile"><span>估算月利息</span><strong>${money(monthlyInterest)}</strong></div>
-    <div class="metric-tile"><span>每月还本</span><strong>${money(principalPaydown)}</strong></div>
+    <div class="metric-tile"><span>${language === "en" ? "Loan principal" : "贷款本金"}</span><strong>${money(principal)}</strong></div>
+    <div class="metric-tile"><span>${language === "en" ? "Annual rate" : "年利率"}</span><strong>${rate.toFixed(2)}%</strong></div>
+    <div class="metric-tile"><span>${language === "en" ? "Estimated monthly interest" : "估算月利息"}</span><strong>${money(monthlyInterest)}</strong></div>
+    <div class="metric-tile"><span>${language === "en" ? "Monthly principal" : "每月还本"}</span><strong>${money(principalPaydown)}</strong></div>
   </div>`;
 }
 function renderPrices() {
@@ -346,28 +492,28 @@ function renderPrices() {
   const autoCount = watches.filter(w => ["coingecko", "alphavantage", "finnhub"].includes(w.source)).length;
   const lastUpdated = watches.map(w => w.updatedAt).filter(Boolean).sort().pop();
   document.querySelector("#priceSummary").textContent = autoCount
-    ? `${autoCount} 个价格可自动刷新${lastUpdated ? `，最近更新 ${dateTimeLabel(lastUpdated)}` : ""}。`
-    : "添加 CoinGecko ID 或 Finnhub 股票代码后即可自动刷新。";
+    ? tr("autoPrices", { count: autoCount, updated: lastUpdated ? tr("lastUpdated", { time: dateTimeLabel(lastUpdated) }) : "" })
+    : tr("autoPriceHint");
   document.querySelector("#priceWatchList").innerHTML = watches.map(w => {
     const quoteCurrency = w.quoteCurrency || w.currency || data.currency;
     const total = Number(w.quantity) * Number(w.price);
     const convertedTotal = convertCurrency(total, quoteCurrency, data.currency);
     const source = priceSourceLabel(w);
     const change = Number(w.change24h) || 0;
-    const holding = w.accountId ? "已关联持仓" : "未持仓";
+    const holding = w.accountId ? tr("linkedHolding") : tr("watchOnly");
     const primaryValue = w.accountId ? money(convertedTotal) : moneyInCurrency(Number(w.price) || 0, quoteCurrency);
     const subValue = w.accountId && quoteCurrency !== data.currency ? `${moneyInCurrency(total, quoteCurrency)} → ${money(convertedTotal)}` : moneyInCurrency(Number(w.price) || 0, quoteCurrency);
     const changeBadge = marketChangeBadge(w);
     return `<button class="price-row" data-edit-price-watch="${w.id}">
       <span class="price-symbol">${escapeHtml((w.symbol || "?").slice(0, 4).toUpperCase())}</span>
-      <span class="price-copy"><strong>${escapeHtml(w.name)}</strong><span>${source} · ${holding} · 数量 ${Number(w.quantity).toLocaleString("zh-CN")}</span>${changeBadge}</span>
+      <span class="price-copy"><strong>${escapeHtml(w.name)}</strong><span>${source} · ${holding} · ${tr("quantity")} ${Number(w.quantity).toLocaleString(currentLocale())}</span>${changeBadge}</span>
       <span class="price-value"><strong>${primaryValue}</strong><span>${subValue}</span></span>
     </button>`;
-  }).join("") || `<div class="card"><p class="eyebrow">还没有价格追踪</p></div>`;
+  }).join("") || `<div class="card"><p class="eyebrow">${tr("noPrices")}</p></div>`;
 }
 function marketChangeBadge(w) {
   if (!["coingecko", "alphavantage", "finnhub"].includes(w.source) || !w.updatedAt) {
-    return `<em class="change-badge neutral">◇ 待刷新</em>`;
+    return `<em class="change-badge neutral">${tr("pendingRefresh")}</em>`;
   }
   const change = Number(w.change24h) || 0;
   const up = change >= 0;
@@ -377,10 +523,10 @@ function priceSourceLabel(w) {
   if (w.source === "coingecko") return `CoinGecko: ${w.coingeckoId}`;
   if (w.source === "alphavantage") return `Alpha Vantage: ${w.symbol}`;
   if (w.source === "finnhub") return `Finnhub: ${w.symbol}`;
-  return "手动价格";
+  return tr("manualPrice");
 }
 function dateTimeLabel(value) {
-  return new Intl.DateTimeFormat("zh-CN", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(value));
+  return new Intl.DateTimeFormat(currentLocale(), { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(value));
 }
 function convertCurrency(value, fromCurrency = data.currency, toCurrency = data.currency) {
   if (fromCurrency === toCurrency) return Number(value) || 0;
@@ -401,35 +547,56 @@ function renderCloudUI() {
   document.querySelector("#syncNowButton").disabled = !email || cloud.syncing;
   document.querySelector("#pullCloudButton").disabled = !email || cloud.syncing;
   document.querySelector("#testSupabaseConnection").disabled = !hasConfig || cloud.syncing;
-  document.querySelector("#signedInText").textContent = email ? `已登录：${email}` : "";
-  status.textContent = !hasConfig ? "未配置" : email ? (cloud.syncing ? "正在同步..." : "已登录并可同步") : "已配置，等待登录";
+  document.querySelector("#signedInText").textContent = email ? tr("signedInAs", { email }) : "";
+  status.textContent = !hasConfig ? tr("cloudUnconfigured") : email ? (cloud.syncing ? tr("cloudSyncing") : tr("cloudReadySync")) : tr("cloudReady");
   const diagnostic = document.querySelector("#cloudDiagnostic");
   diagnostic.textContent = cloud.diagnostic;
   diagnostic.className = `cloud-diagnostic ${cloud.diagnosticType}`;
+  updateCloudLoginChip();
+}
+function updateCloudLoginChip() {
+  const chip = document.querySelector("#cloudLoginChip");
+  if (!chip) return;
+  const hasConfig = Boolean(cloud.config.url && cloud.config.anonKey);
+  const email = cloud.session?.user?.email;
+  chip.classList.toggle("signed-in", Boolean(email));
+  chip.classList.toggle("pending", hasConfig && !email);
+  chip.textContent = email ? `${tr("cloudSignedIn")}: ${email}` : hasConfig ? tr("cloudPending") : tr("notSignedIn");
+  chip.title = chip.textContent;
 }
 function renderSecurityUI() {
   const supported = Boolean(window.PublicKeyCredential && navigator.credentials && window.isSecureContext);
   const status = document.querySelector("#faceIdStatus");
-  status.textContent = !supported ? "此浏览器不支持，或当前不是 HTTPS" : biometric.enabled ? "已启用。下次打开会要求 Face ID/设备解锁。" : "未启用";
+  status.textContent = !supported
+    ? (language === "en" ? "This browser is unsupported, or the page is not HTTPS." : "此浏览器不支持，或当前不是 HTTPS")
+    : biometric.enabled
+      ? (language === "en" ? "Enabled. Next launch will ask for Face ID/device unlock." : "已启用。下次打开会要求 Face ID/设备解锁。")
+      : (language === "en" ? "Not enabled" : "未启用");
   document.querySelector("#enableFaceIdButton").classList.toggle("hidden", !supported || biometric.enabled);
   document.querySelector("#disableFaceIdButton").classList.toggle("hidden", !biometric.enabled);
 }
 function renderMarketUI() {
   document.querySelector("#finnhubTokenInput").value = marketConfig.finnhubToken || "";
   document.querySelector("#alphaVantageKeyInput").value = marketConfig.alphaVantageKey || "";
-  const fx = marketConfig.fxRates?.USD_AUD ? `USD/AUD ${Number(marketConfig.fxRates.USD_AUD).toFixed(4)}` : "汇率待刷新";
-  document.querySelector("#marketStatus").textContent = marketConfig.finnhubToken ? `Finnhub 已配置，${fx}。` : `未配置 Finnhub，${fx}。`;
+  const fx = marketConfig.fxRates?.USD_AUD ? `USD/AUD ${Number(marketConfig.fxRates.USD_AUD).toFixed(4)}` : tr("fxPending");
+  document.querySelector("#marketStatus").textContent = marketConfig.finnhubToken ? tr("configuredFinnhub", { fx }) : tr("notConfiguredFinnhub", { fx });
 }
 function renderEncryptionUI() {
   const status = document.querySelector("#encryptionStatus");
   const diagnostic = document.querySelector("#encryptionDiagnostic");
   const enabled = encryption.enabled;
   const unlocked = Boolean(vaultKey);
-  status.textContent = enabled ? (unlocked ? "已启用并已解锁，云端同步将写入密文 Vault。" : "已启用，等待输入密码解锁。") : "未启用";
+  status.textContent = enabled
+    ? (unlocked
+      ? (language === "en" ? "Enabled and unlocked. Cloud sync will write encrypted Vault data." : "已启用并已解锁，云端同步将写入密文 Vault。")
+      : (language === "en" ? "Enabled, waiting for your password to unlock." : "已启用，等待输入密码解锁。"))
+    : (language === "en" ? "Not enabled" : "未启用");
   document.querySelector("#enableEncryptionButton").classList.toggle("hidden", enabled && unlocked);
   document.querySelector("#unlockEncryptionButton").classList.toggle("hidden", !enabled || unlocked);
   document.querySelector("#disableEncryptionButton").classList.toggle("hidden", !enabled);
-  diagnostic.textContent = enabled ? "启用后，完整数据会以密文同步到 Supabase Vault。请务必记住密码。" : "密码不会上传。忘记密码将无法解密云端 Vault。";
+  diagnostic.textContent = enabled
+    ? (language === "en" ? "When enabled, full data syncs to Supabase Vault as ciphertext. Remember this password." : "启用后，完整数据会以密文同步到 Supabase Vault。请务必记住密码。")
+    : (language === "en" ? "The password is never uploaded. If you forget it, the cloud Vault cannot be decrypted." : "密码不会上传。忘记密码将无法解密云端 Vault。");
 }
 
 function field(label, name, value = "", type = "text", extra = "") {
@@ -443,59 +610,59 @@ function openEditor(type, id = null) {
   deleteBtn.classList.toggle("hidden", !id);
   if (type === "account") {
     const item = data.accounts.find(a => a.id === id) || { name:"", type:"property", kind:"asset", value:"", note:"", updated:new Date().toISOString().slice(0,10) };
-    document.querySelector("#dialogTitle").textContent = id ? "编辑账户" : "添加资产或负债";
-    fields.innerHTML = `${field("名称", "name", item.name, "text", "required")}
-      <label class="field"><span>类别</span><select name="type">${Object.entries(labels).map(([v,l]) => `<option value="${v}" ${item.type === v ? "selected":""}>${l}</option>`).join("")}</select></label>
-      <label class="field"><span>性质</span><select name="kind"><option value="asset" ${item.kind === "asset" ? "selected":""}>资产</option><option value="liability" ${item.kind === "liability" ? "selected":""}>负债</option></select></label>
-      ${field("当前价值", "value", item.value, "number", "min='0' step='0.01' required")}${field("备注", "note", item.note)}${field("更新日期", "updated", item.updated, "date", "required")}`;
+    document.querySelector("#dialogTitle").textContent = id ? (language === "en" ? "Edit Account" : "编辑账户") : (language === "en" ? "Add Asset or Liability" : "添加资产或负债");
+    fields.innerHTML = `${field(language === "en" ? "Name" : "名称", "name", item.name, "text", "required")}
+      <label class="field"><span>${language === "en" ? "Category" : "类别"}</span><select name="type">${Object.entries(typeLabels[language]).map(([v,l]) => `<option value="${v}" ${item.type === v ? "selected":""}>${l}</option>`).join("")}</select></label>
+      <label class="field"><span>${language === "en" ? "Kind" : "性质"}</span><select name="kind"><option value="asset" ${item.kind === "asset" ? "selected":""}>${tr("assets")}</option><option value="liability" ${item.kind === "liability" ? "selected":""}>${tr("liabilities")}</option></select></label>
+      ${field(language === "en" ? "Current Value" : "当前价值", "value", item.value, "number", "min='0' step='0.01' required")}${field(language === "en" ? "Note" : "备注", "note", item.note)}${field(language === "en" ? "Updated Date" : "更新日期", "updated", item.updated, "date", "required")}`;
   } else if (type === "saving") {
     const item = data.savings.find(s => s.id === id) || { month:new Date().toISOString().slice(0,7), amount:"", note:"" };
-    document.querySelector("#dialogTitle").textContent = id ? "编辑月末记录" : "记录月末余额";
-    fields.innerHTML = `${field("月份", "month", item.month, "month", "required")}${field("储蓄与活期余额", "amount", item.amount, "number", "min='0' step='0.01' required")}
-      <label class="field"><span>Notes</span><textarea name="note" placeholder="这个月发生了什么？">${escapeHtml(item.note)}</textarea></label>`;
+    document.querySelector("#dialogTitle").textContent = id ? (language === "en" ? "Edit Month-End Record" : "编辑月末记录") : (language === "en" ? "Record Month-End Balance" : "记录月末余额");
+    fields.innerHTML = `${field(language === "en" ? "Month" : "月份", "month", item.month, "month", "required")}${field(language === "en" ? "Savings + Transaction Balance" : "储蓄与活期余额", "amount", item.amount, "number", "min='0' step='0.01' required")}
+      <label class="field"><span>Notes</span><textarea name="note" placeholder="${language === "en" ? "What happened this month?" : "这个月发生了什么？"}">${escapeHtml(item.note)}</textarea></label>`;
   } else if (type === "note") {
     const item = data.notes.find(n => n.id === id) || { title:"", body:"", date:new Date().toISOString().slice(0,10) };
-    document.querySelector("#dialogTitle").textContent = id ? "编辑 Note" : "添加 Note";
-    fields.innerHTML = `${field("标题", "title", item.title, "text", "required")}<label class="field"><span>内容</span><textarea name="body" required>${escapeHtml(item.body)}</textarea></label>${field("日期", "date", item.date, "date", "required")}`;
+    document.querySelector("#dialogTitle").textContent = id ? (language === "en" ? "Edit Note" : "编辑 Note") : (language === "en" ? "Add Note" : "添加 Note");
+    fields.innerHTML = `${field(language === "en" ? "Title" : "标题", "title", item.title, "text", "required")}<label class="field"><span>${language === "en" ? "Body" : "内容"}</span><textarea name="body" required>${escapeHtml(item.body)}</textarea></label>${field(language === "en" ? "Date" : "日期", "date", item.date, "date", "required")}`;
   }
   if (type === "goal") {
     const item = data.goals.find(g => g.id === id) || { name:"", target:"", currentType:"netWorth", due:new Date().toISOString().slice(0,7), note:"" };
-    document.querySelector("#dialogTitle").textContent = id ? "编辑财富目标" : "添加财富目标";
-    fields.innerHTML = `${field("目标名称", "name", item.name, "text", "required")}${field("目标金额", "target", item.target, "number", "min='0' step='0.01' required")}
-      <label class="field"><span>跟踪指标</span><select name="currentType"><option value="netWorth" ${item.currentType === "netWorth" ? "selected":""}>净资产</option><option value="cash" ${item.currentType === "cash" ? "selected":""}>现金存款</option><option value="liquid" ${item.currentType === "liquid" ? "selected":""}>流动资产</option></select></label>
-      ${field("期限", "due", item.due, "month")}<label class="field"><span>备注</span><textarea name="note">${escapeHtml(item.note || "")}</textarea></label>`;
+    document.querySelector("#dialogTitle").textContent = id ? (language === "en" ? "Edit Goal" : "编辑财富目标") : (language === "en" ? "Add Goal" : "添加财富目标");
+    fields.innerHTML = `${field(language === "en" ? "Goal Name" : "目标名称", "name", item.name, "text", "required")}${field(language === "en" ? "Target Amount" : "目标金额", "target", item.target, "number", "min='0' step='0.01' required")}
+      <label class="field"><span>${language === "en" ? "Tracking Metric" : "跟踪指标"}</span><select name="currentType"><option value="netWorth" ${item.currentType === "netWorth" ? "selected":""}>${tr("netWorth")}</option><option value="cash" ${item.currentType === "cash" ? "selected":""}>${typeLabel("cash")}</option><option value="liquid" ${item.currentType === "liquid" ? "selected":""}>${tr("liquidAssets")}</option></select></label>
+      ${field(language === "en" ? "Due" : "期限", "due", item.due, "month")}<label class="field"><span>${language === "en" ? "Note" : "备注"}</span><textarea name="note">${escapeHtml(item.note || "")}</textarea></label>`;
   }
   if (type === "snapshot") {
     const t = totals();
     const item = data.snapshots.find(s => s.id === id) || { month:new Date().toISOString().slice(0,7), assets:t.assets, liabilities:t.liabilities };
-    document.querySelector("#dialogTitle").textContent = id ? "编辑净资产快照" : "记录净资产快照";
-    fields.innerHTML = `${field("月份", "month", item.month, "month", "required")}${field("总资产", "assets", item.assets, "number", "min='0' step='0.01' required")}${field("总负债", "liabilities", item.liabilities, "number", "min='0' step='0.01' required")}`;
+    document.querySelector("#dialogTitle").textContent = id ? (language === "en" ? "Edit Net Worth Snapshot" : "编辑净资产快照") : (language === "en" ? "Record Net Worth Snapshot" : "记录净资产快照");
+    fields.innerHTML = `${field(language === "en" ? "Month" : "月份", "month", item.month, "month", "required")}${field(tr("totalAssets"), "assets", item.assets, "number", "min='0' step='0.01' required")}${field(tr("totalLiabilities"), "liabilities", item.liabilities, "number", "min='0' step='0.01' required")}`;
   }
   if (type === "budget") {
     const item = data.budget;
     deleteBtn.classList.add("hidden");
-    document.querySelector("#dialogTitle").textContent = "编辑每月预算";
-    fields.innerHTML = `${field("月收入", "monthlyIncome", item.monthlyIncome, "number", "min='0' step='0.01' required")}${field("固定支出", "fixedExpense", item.fixedExpense, "number", "min='0' step='0.01' required")}${field("自由支出", "flexExpense", item.flexExpense, "number", "min='0' step='0.01' required")}${field("目标储蓄", "savingTarget", item.savingTarget, "number", "min='0' step='0.01' required")}`;
+    document.querySelector("#dialogTitle").textContent = language === "en" ? "Edit Monthly Budget" : "编辑每月预算";
+    fields.innerHTML = `${field(language === "en" ? "Monthly Income" : "月收入", "monthlyIncome", item.monthlyIncome, "number", "min='0' step='0.01' required")}${field(language === "en" ? "Fixed Expenses" : "固定支出", "fixedExpense", item.fixedExpense, "number", "min='0' step='0.01' required")}${field(language === "en" ? "Flexible Spending" : "自由支出", "flexExpense", item.flexExpense, "number", "min='0' step='0.01' required")}${field(language === "en" ? "Saving Target" : "目标储蓄", "savingTarget", item.savingTarget, "number", "min='0' step='0.01' required")}`;
   }
   if (type === "loanPlan") {
     const item = data.loanPlan;
     deleteBtn.classList.add("hidden");
-    document.querySelector("#dialogTitle").textContent = "编辑房贷测算";
-    fields.innerHTML = `${field("贷款本金", "principal", item.principal, "number", "min='0' step='0.01' required")}${field("年利率 %", "annualRate", item.annualRate, "number", "min='0' step='0.01' required")}${field("每月还款", "monthlyRepayment", item.monthlyRepayment, "number", "min='0' step='0.01' required")}${field("Offset / 对冲账户余额", "offsetBalance", item.offsetBalance, "number", "min='0' step='0.01' required")}`;
+    document.querySelector("#dialogTitle").textContent = language === "en" ? "Edit Mortgage Planner" : "编辑房贷测算";
+    fields.innerHTML = `${field(language === "en" ? "Loan Principal" : "贷款本金", "principal", item.principal, "number", "min='0' step='0.01' required")}${field(language === "en" ? "Annual Rate %" : "年利率 %", "annualRate", item.annualRate, "number", "min='0' step='0.01' required")}${field(language === "en" ? "Monthly Repayment" : "每月还款", "monthlyRepayment", item.monthlyRepayment, "number", "min='0' step='0.01' required")}${field(language === "en" ? "Offset Balance" : "Offset / 对冲账户余额", "offsetBalance", item.offsetBalance, "number", "min='0' step='0.01' required")}`;
   }
   if (type === "priceWatch") {
     data.priceWatch = data.priceWatch || [];
     const item = data.priceWatch.find(w => w.id === id) || { accountId:"", name:"", symbol:"", source:"alphavantage", coingeckoId:"", quantity:"", price:"", currency:"USD", quoteCurrency:"USD", change24h:0, updatedAt:"" };
-    const accountOptions = [`<option value="">不关联账户</option>`].concat(data.accounts.filter(a => a.kind === "asset").map(a => `<option value="${a.id}" ${item.accountId === a.id ? "selected":""}>${escapeHtml(a.name)}</option>`)).join("");
+    const accountOptions = [`<option value="">${language === "en" ? "Do not link account" : "不关联账户"}</option>`].concat(data.accounts.filter(a => a.kind === "asset").map(a => `<option value="${a.id}" ${item.accountId === a.id ? "selected":""}>${escapeHtml(a.name)}</option>`)).join("");
     const symbolOptions = marketSymbols.map(([symbol, name]) => `<option value="${symbol}">${escapeHtml(name)}</option>`).join("");
-    document.querySelector("#dialogTitle").textContent = id ? "编辑价格追踪" : "添加价格追踪";
-    fields.innerHTML = `${field("名称", "name", item.name, "text", "required")}${field("代码", "symbol", item.symbol, "text", "required list='marketSymbolOptions' placeholder='输入或从列表选择，例如 AAPL / VAS.AX'")}<datalist id="marketSymbolOptions">${symbolOptions}</datalist>
-      <button type="button" class="secondary-button full-width" id="marketSymbolSearchButton">搜索代码建议</button><div class="symbol-results" id="marketSymbolResults"></div>
-      <label class="field"><span>关联资产账户</span><select name="accountId">${accountOptions}</select></label>
-      <label class="field"><span>价格来源</span><select name="source"><option value="manual" ${item.source === "manual" ? "selected":""}>手动价格</option><option value="coingecko" ${item.source === "coingecko" ? "selected":""}>CoinGecko Crypto</option><option value="finnhub" ${item.source === "finnhub" ? "selected":""}>Finnhub 股票/ETF</option><option value="alphavantage" ${item.source === "alphavantage" ? "selected":""}>Alpha Vantage 股票/ETF/基金</option></select></label>
-      <label class="field"><span>报价币种</span><select name="quoteCurrency"><option value="USD" ${(item.quoteCurrency || item.currency) === "USD" ? "selected":""}>USD 美元</option><option value="AUD" ${(item.quoteCurrency || item.currency) === "AUD" ? "selected":""}>AUD 澳元</option><option value="CNY" ${(item.quoteCurrency || item.currency) === "CNY" ? "selected":""}>CNY 人民币</option></select></label>
-      ${field("CoinGecko ID", "coingeckoId", item.coingeckoId || "", "text", "placeholder='Crypto 填 bitcoin / ethereum；股票可留空'")}
-      ${field("持仓数量", "quantity", item.quantity, "number", "min='0' step='any' placeholder='未持仓可填 0'")}${field("当前单价", "price", item.price, "number", "min='0' step='any' placeholder='可空，刷新后自动填入'")}`;
+    document.querySelector("#dialogTitle").textContent = id ? (language === "en" ? "Edit Price Watch" : "编辑价格追踪") : (language === "en" ? "Add Price Watch" : "添加价格追踪");
+    fields.innerHTML = `${field(language === "en" ? "Name" : "名称", "name", item.name, "text", "required")}${field(language === "en" ? "Symbol" : "代码", "symbol", item.symbol, "text", `required list='marketSymbolOptions' placeholder='${language === "en" ? "Type or select, e.g. AAPL / VAS.AX" : "输入或从列表选择，例如 AAPL / VAS.AX"}'`)}<datalist id="marketSymbolOptions">${symbolOptions}</datalist>
+      <button type="button" class="secondary-button full-width" id="marketSymbolSearchButton">${language === "en" ? "Search symbol suggestions" : "搜索代码建议"}</button><div class="symbol-results" id="marketSymbolResults"></div>
+      <label class="field"><span>${language === "en" ? "Linked Asset Account" : "关联资产账户"}</span><select name="accountId">${accountOptions}</select></label>
+      <label class="field"><span>${language === "en" ? "Price Source" : "价格来源"}</span><select name="source"><option value="manual" ${item.source === "manual" ? "selected":""}>${tr("manualPrice")}</option><option value="coingecko" ${item.source === "coingecko" ? "selected":""}>CoinGecko Crypto</option><option value="finnhub" ${item.source === "finnhub" ? "selected":""}>Finnhub ${language === "en" ? "Stocks/ETF" : "股票/ETF"}</option><option value="alphavantage" ${item.source === "alphavantage" ? "selected":""}>Alpha Vantage ${language === "en" ? "Stocks/ETF/Funds" : "股票/ETF/基金"}</option></select></label>
+      <label class="field"><span>${language === "en" ? "Quote Currency" : "报价币种"}</span><select name="quoteCurrency"><option value="USD" ${(item.quoteCurrency || item.currency) === "USD" ? "selected":""}>USD ${language === "en" ? "Dollar" : "美元"}</option><option value="AUD" ${(item.quoteCurrency || item.currency) === "AUD" ? "selected":""}>AUD ${language === "en" ? "Dollar" : "澳元"}</option><option value="CNY" ${(item.quoteCurrency || item.currency) === "CNY" ? "selected":""}>CNY ${language === "en" ? "Yuan" : "人民币"}</option></select></label>
+      ${field("CoinGecko ID", "coingeckoId", item.coingeckoId || "", "text", `placeholder='${language === "en" ? "Crypto: bitcoin / ethereum; stocks can stay blank" : "Crypto 填 bitcoin / ethereum；股票可留空"}'`)}
+      ${field(language === "en" ? "Holding Quantity" : "持仓数量", "quantity", item.quantity, "number", `min='0' step='any' placeholder='${language === "en" ? "Use 0 for watch only" : "未持仓可填 0"}'`)}${field(language === "en" ? "Current Unit Price" : "当前单价", "price", item.price, "number", `min='0' step='any' placeholder='${language === "en" ? "Can be empty; refresh will fill it" : "可空，刷新后自动填入"}'`)}`;
   }
   dialog.showModal();
 }
@@ -534,10 +701,10 @@ async function initCloud() {
 async function signInWithEmail() {
   const client = ensureSupabaseClient();
   const email = document.querySelector("#authEmailInput").value.trim();
-  if (!client) return showToast("请先保存 Supabase 配置");
-  if (!email) return showToast("请输入邮箱");
+  if (!client) return showToast(language === "en" ? "Save Supabase config first" : "请先保存 Supabase 配置");
+  if (!email) return showToast(language === "en" ? "Enter your email" : "请输入邮箱");
   try {
-    cloud.diagnostic = "正在向 Supabase 发送登录邮件请求...";
+    cloud.diagnostic = language === "en" ? "Sending login email request to Supabase..." : "正在向 Supabase 发送登录邮件请求...";
     cloud.diagnosticType = "";
     renderCloudUI();
     const { error } = await client.auth.signInWithOtp({
@@ -545,34 +712,34 @@ async function signInWithEmail() {
       options: { emailRedirectTo: location.origin + location.pathname }
     });
     if (error) throw error;
-    cloud.diagnostic = `Supabase 已接受请求：登录链接已发送到 ${email}。如果没收到，请看 Authentication → Logs。`;
+    cloud.diagnostic = language === "en" ? `Supabase accepted the request: login link sent to ${email}. If it does not arrive, check Authentication → Logs.` : `Supabase 已接受请求：登录链接已发送到 ${email}。如果没收到，请看 Authentication → Logs。`;
     cloud.diagnosticType = "ok";
     renderCloudUI();
-    showToast("登录链接已发送，请查看邮箱");
+    showToast(language === "en" ? "Login link sent. Check your email" : "登录链接已发送，请查看邮箱");
   } catch (error) {
-    cloud.diagnostic = `发送失败：${error.message || error}`;
+    cloud.diagnostic = `${language === "en" ? "Send failed" : "发送失败"}：${error.message || error}`;
     cloud.diagnosticType = "error";
     renderCloudUI();
-    showToast("发送失败，请查看诊断信息");
+    showToast(language === "en" ? "Send failed. Check diagnostics" : "发送失败，请查看诊断信息");
   }
 }
 async function testSupabaseConnection() {
   const client = ensureSupabaseClient();
-  if (!client) return showToast("请先保存 Supabase 配置");
+  if (!client) return showToast(language === "en" ? "Save Supabase config first" : "请先保存 Supabase 配置");
   cloud.syncing = true;
-  cloud.diagnostic = "正在测试 Supabase 连接...";
+  cloud.diagnostic = language === "en" ? "Testing Supabase connection..." : "正在测试 Supabase 连接...";
   cloud.diagnosticType = "";
   renderCloudUI();
   try {
     const { error } = await client.from("little_steward_settings").select("user_id").limit(1);
     if (error) throw error;
-    cloud.diagnostic = "连接成功：Project URL、Publishable Key、数据库表都可以访问。现在可以发送登录链接。";
+    cloud.diagnostic = language === "en" ? "Connection OK: Project URL, Publishable Key, and database tables are reachable. You can send the login link now." : "连接成功：Project URL、Publishable Key、数据库表都可以访问。现在可以发送登录链接。";
     cloud.diagnosticType = "ok";
-    showToast("Supabase 连接成功");
+    showToast(language === "en" ? "Supabase connected" : "Supabase 连接成功");
   } catch (error) {
-    cloud.diagnostic = `连接失败：${error.message || error}`;
+    cloud.diagnostic = `${language === "en" ? "Connection failed" : "连接失败"}：${error.message || error}`;
     cloud.diagnosticType = "error";
-    showToast("连接失败，请查看诊断信息");
+    showToast(language === "en" ? "Connection failed. Check diagnostics" : "连接失败，请查看诊断信息");
   } finally {
     cloud.syncing = false;
     renderCloudUI();
@@ -583,7 +750,7 @@ async function signOut() {
   await cloud.client.auth.signOut();
   cloud.session = null;
   renderCloudUI();
-  showToast("已退出登录");
+  showToast(language === "en" ? "Signed out" : "已退出登录");
 }
 function randomBytes(length = 32) {
   const bytes = new Uint8Array(length);
@@ -701,7 +868,7 @@ async function enableFaceIdUnlock() {
 async function unlockWithFaceId() {
   if (!biometric.enabled || !biometric.credentialId) return showLoginReady();
   try {
-    setLoginMessage("等待 Face ID 确认...");
+    setLoginMessage(language === "en" ? "Waiting for Face ID..." : "等待 Face ID 确认...");
     await navigator.credentials.get({
       publicKey: {
         challenge: randomBytes(),
@@ -711,9 +878,9 @@ async function unlockWithFaceId() {
       }
     });
     hideLoginScreen();
-    showToast("欢迎回来");
+    showToast(language === "en" ? "Welcome back" : "欢迎回来");
   } catch {
-    setLoginMessage("Face ID 未完成。你可以重试，或进入设置处理登录。");
+    setLoginMessage(language === "en" ? "Face ID was not completed. Try again or open settings." : "Face ID 未完成。你可以重试，或进入设置处理登录。");
     document.querySelector("#faceUnlockButton").classList.remove("hidden");
     document.querySelector("#enterAppButton").classList.remove("hidden");
     document.querySelector("#loginSettingsButton").classList.remove("hidden");
@@ -958,7 +1125,7 @@ function hideLoginScreen() {
   document.querySelector("#loginScreen").classList.add("hidden");
 }
 function showLoginReady() {
-  setLoginMessage("你的资产、储蓄和 Notes 已准备好。");
+  setLoginMessage(language === "en" ? "Your assets, savings, and Notes are ready." : "你的资产、储蓄和 Notes 已准备好。");
   document.querySelector("#loadingTrack").classList.add("hidden");
   document.querySelector("#enterAppButton").classList.remove("hidden");
   document.querySelector("#loginSettingsButton").classList.remove("hidden");
@@ -967,7 +1134,7 @@ function bootLoginScreen() {
   setTimeout(() => {
     document.querySelector("#loadingTrack").classList.add("hidden");
     if (biometric.enabled) {
-      setLoginMessage("已启用 Face ID 快速解锁。");
+      setLoginMessage(language === "en" ? "Face ID quick unlock is enabled." : "已启用 Face ID 快速解锁。");
       document.querySelector("#faceUnlockButton").classList.remove("hidden");
       unlockWithFaceId();
     } else {
@@ -1002,7 +1169,7 @@ async function reconcileCloudOnLogin() {
   try {
     if (encryption.enabled && !vaultKey) {
       renderEncryptionUI();
-      showToast("云端加密已启用，请先解锁");
+      showToast(language === "en" ? "Cloud encryption is enabled. Please unlock first." : "云端加密已启用，请先解锁");
       return;
     }
     const remote = await fetchCloudData();
@@ -1032,7 +1199,7 @@ async function reconcileCloudOnLogin() {
       render();
     }
   } catch (error) {
-    showToast(`云同步初始化失败：${error.message}`);
+    showToast(`${language === "en" ? "Cloud sync initialization failed" : "云同步初始化失败"}：${error.message}`);
   }
 }
 async function syncToCloud({ quiet = false } = {}) {
@@ -1224,7 +1391,7 @@ document.addEventListener("click", e => {
 function switchPage(id) {
   document.querySelectorAll(".page").forEach(p => p.classList.toggle("active", p.id === id));
   document.querySelectorAll(".bottom-nav button").forEach(b => b.classList.toggle("active", b.dataset.page === id));
-  document.querySelector("#pageTitle").textContent = ({ overviewPage:"我的资产", assetsPage:"资产与负债", savingsPage:"储蓄记录", planningPage:"计划中心", pricesPage:"价格中心", notesPage:"Notes" })[id];
+  document.querySelector("#pageTitle").textContent = pageTitle(id);
   scrollTo({ top: 0, behavior: "smooth" });
 }
 document.querySelector("#assetSegment").addEventListener("click", e => {
@@ -1307,10 +1474,18 @@ document.querySelector("#deleteButton").onclick = async () => {
   await persistData("已删除");
 };
 document.querySelector("#settingsButton").onclick = () => document.querySelector("#settingsDialog").showModal();
+document.querySelector("#cloudLoginChip").onclick = () => document.querySelector("#settingsDialog").showModal();
 document.querySelector("#closeSettings").onclick = () => document.querySelector("#settingsDialog").close();
 document.querySelector("#currencySelect").onchange = async e => {
   data.currency = e.target.value;
-  await persistData("货币已更新");
+  await persistData(language === "en" ? "Currency updated" : "货币已更新");
+};
+document.querySelector("#languageSelect").onchange = e => {
+  language = e.target.value === "en" ? "en" : "zh";
+  localStorage.setItem(LANGUAGE_KEY, language);
+  cloud.diagnostic = tr("configuredHint");
+  render();
+  showToast(language === "en" ? "Language updated" : "语言已更新");
 };
 document.querySelector("#resetData").onclick = async () => {
   data = structuredClone(seedData);
@@ -1355,8 +1530,8 @@ document.querySelector("#loginSettingsButton").onclick = () => {
   document.querySelector("#settingsDialog").showModal();
 };
 
-document.querySelector("#todayLabel").textContent = new Intl.DateTimeFormat("zh-CN", { month:"long", day:"numeric", weekday:"long" }).format(new Date());
 document.querySelector("#currencySelect").value = data.currency;
+document.querySelector("#languageSelect").value = language;
 render();
 initCloud();
 bootLoginScreen();
