@@ -265,10 +265,14 @@
             <input id="authEmailInput" type="email" placeholder="you@example.com" autocomplete="email">
           </label>
           <button class="primary-button full-width" id="sendLoginLink">发送登录链接</button>
-          <p class="cloud-diagnostic" id="loginLinkHelp">如果邮箱链接打开的是 Safari，而不是主屏幕 App，请复制邮件里的完整登录链接，回到这里粘贴完成登录。</p>
+          <p class="cloud-diagnostic" id="loginLinkHelp">更稳的手机登录方式：收到邮件后不要先点开链接，长按复制完整登录链接，回到这里粘贴并完成此设备登录。</p>
           <label class="field">
             <span id="loginLinkLabel">粘贴登录链接</span>
             <textarea id="loginLinkInput" placeholder="https://..."></textarea>
+          </label>
+          <label class="field">
+            <span id="emailOtpLabel">邮箱验证码 / Token（可选）</span>
+            <input id="emailOtpInput" type="text" inputmode="numeric" placeholder="如果邮件显示 6 位验证码，可以填这里">
           </label>
           <button class="secondary-button full-width" id="completeLoginLinkButton">用此链接在本机登录</button>
           <button class="secondary-button full-width" id="checkDeviceLoginButton">检查此设备登录状态</button>
