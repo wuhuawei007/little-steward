@@ -20,7 +20,7 @@ const marketSymbols = [
 ];
 const i18n = {
   zh: {
-    appName: "小管家", appTitle: "小管家 · 资产与储蓄", version: "版本：2026.06.18 登录链接增强",
+    appName: "小管家", appTitle: "小管家 · 资产与储蓄", version: "版本：2026.06.20 密码登录",
     welcome: "欢迎回来", waking: "正在唤醒你的小管家...", faceUnlock: "使用 Face ID 解锁", enterApp: "进入小管家", loginSettings: "设置 Supabase 登录",
     pageOverview: "我的资产", pageAssets: "资产与负债", pageSavings: "储蓄记录", pagePlanning: "计划中心", pagePrices: "价格中心", pageNotes: "Notes",
     notSignedIn: "未登录", cloudPending: "等待登录", cloudSignedIn: "已登录", syncingShort: "同步中",
@@ -30,7 +30,7 @@ const i18n = {
     timeline: "净资产趋势", goals: "财富目标", budget: "每月预算", mortgage: "房贷测算", edit: "编辑", addSnapshot: "记录快照",
     marketSync: "Market Sync", priceTracking: "价格追踪", priceSummaryStatic: "管理股票、基金和 Crypto 的持仓价格。", refreshPrices: "刷新价格", watchlist: "Watchlist", holdingsPrice: "持仓价格", addPrice: "＋ 添加价格追踪",
     notesEyebrow: "财务随手记", notesIntro: "记下重要决定，<br>也记下生活。", navOverview: "总览", navAssets: "资产", navSavings: "储蓄", navPlanning: "计划", navPrices: "价格",
-    settings: "设置", done: "完成", displayCurrency: "显示货币", language: "语言", cloudSync: "Supabase 云同步", sync: "同步", saveSupabase: "保存 Supabase 配置", testSupabase: "测试 Supabase 连接", loginEmail: "登录邮箱", sendLoginLink: "发送登录链接", loginLinkHelp: "更稳的手机登录方式：收到邮件后不要先点开链接，长按复制完整登录链接，回到这里粘贴并完成此设备登录。", loginLinkLabel: "粘贴登录链接", emailOtpLabel: "邮箱验证码 / Token（可选）", completeLoginLink: "用此链接在本机登录", checkDeviceLogin: "检查此设备登录状态", pullCloud: "从云端恢复到本机", signOut: "退出登录",
+    settings: "设置", done: "完成", displayCurrency: "显示货币", language: "语言", cloudSync: "Supabase 云同步", sync: "同步", saveSupabase: "保存 Supabase 配置", testSupabase: "测试 Supabase 连接", loginEmail: "登录邮箱", authPassword: "登录密码", signInPassword: "用邮箱密码登录", signUpPassword: "注册邮箱密码账户", passwordLoginHelp: "推荐优先使用邮箱密码登录。它会直接在当前 App 建立登录状态，不依赖邮箱链接跳转。", sendLoginLink: "发送登录链接", loginLinkHelp: "备用方式：收到邮件后不要先点开链接，长按复制完整登录链接，回到这里粘贴并完成此设备登录。", loginLinkLabel: "粘贴登录链接", emailOtpLabel: "邮箱验证码 / Token（可选）", completeLoginLink: "用此链接在本机登录", checkDeviceLogin: "检查此设备登录状态", pullCloud: "从云端恢复到本机", signOut: "退出登录",
     faceId: "Face ID 快速解锁", enableFaceId: "启用 Face ID 解锁", disableFaceId: "关闭 Face ID 解锁", marketApi: "行情 API", saveMarket: "保存行情设置", encryption: "云端数据加密", passphrase: "加密密码", enableEncryption: "启用加密并同步", unlockEncryption: "解锁加密数据", disableEncryption: "关闭本机加密设置", localSave: "本地保存", localSaveHint: "数据仅保存在这台设备", backup: "数据备份", backupHint: "导出 JSON 作为 Supabase 之外的第二保险", exportBackup: "导出备份 JSON", importBackup: "导入备份 JSON", reset: "恢复示例数据",
     cloudUnconfigured: "未配置", cloudReady: "已配置，等待登录", cloudSyncing: "正在同步...", cloudReadySync: "此设备已登录并可同步", signedInAs: "此设备已登录：{email}", configuredHint: "配置保存后，可以先测试连接。",
     notConfiguredFinnhub: "未配置 Finnhub，{fx}。", configuredFinnhub: "Finnhub 已配置，{fx}。", fxPending: "汇率待刷新",
@@ -40,7 +40,7 @@ const i18n = {
     cancel: "取消", save: "保存", deleteRecord: "删除此记录"
   },
   en: {
-    appName: "Little Steward", appTitle: "Little Steward · Assets & Savings", version: "Version: 2026.06.18 Stronger login links",
+    appName: "Little Steward", appTitle: "Little Steward · Assets & Savings", version: "Version: 2026.06.20 Password login",
     welcome: "Welcome Back", waking: "Waking up your Little Steward...", faceUnlock: "Unlock with Face ID", enterApp: "Enter Little Steward", loginSettings: "Set up Supabase login",
     pageOverview: "My Assets", pageAssets: "Assets & Liabilities", pageSavings: "Savings Records", pagePlanning: "Planning", pagePrices: "Prices", pageNotes: "Notes",
     notSignedIn: "Not signed in", cloudPending: "Login pending", cloudSignedIn: "Signed in", syncingShort: "Syncing",
@@ -50,7 +50,7 @@ const i18n = {
     timeline: "Net Worth Timeline", goals: "Wealth Goals", budget: "Monthly Budget", mortgage: "Mortgage Planner", edit: "Edit", addSnapshot: "Add Snapshot",
     marketSync: "Market Sync", priceTracking: "Price Tracking", priceSummaryStatic: "Track holding prices for stocks, funds, and crypto.", refreshPrices: "Refresh Prices", watchlist: "Watchlist", holdingsPrice: "Holding Prices", addPrice: "+ Add price watch",
     notesEyebrow: "Finance Notes", notesIntro: "Capture key decisions,<br>and the life around them.", navOverview: "Home", navAssets: "Assets", navSavings: "Savings", navPlanning: "Plan", navPrices: "Prices",
-    settings: "Settings", done: "Done", displayCurrency: "Display Currency", language: "Language", cloudSync: "Supabase Cloud Sync", sync: "Sync", saveSupabase: "Save Supabase Config", testSupabase: "Test Supabase Connection", loginEmail: "Login Email", sendLoginLink: "Send Login Link", loginLinkHelp: "More reliable phone login: when the email arrives, do not open the link first. Long-press and copy the full login link, paste it here, then finish login on this device.", loginLinkLabel: "Paste login link", emailOtpLabel: "Email code / token (optional)", completeLoginLink: "Log in on this device with link", checkDeviceLogin: "Check this device login", pullCloud: "Restore From Cloud", signOut: "Sign Out",
+    settings: "Settings", done: "Done", displayCurrency: "Display Currency", language: "Language", cloudSync: "Supabase Cloud Sync", sync: "Sync", saveSupabase: "Save Supabase Config", testSupabase: "Test Supabase Connection", loginEmail: "Login Email", authPassword: "Login Password", signInPassword: "Sign in with email password", signUpPassword: "Create email password account", passwordLoginHelp: "Recommended: use email password login first. It creates a session directly inside this app without relying on email link redirects.", sendLoginLink: "Send Login Link", loginLinkHelp: "Fallback method: when the email arrives, do not open the link first. Long-press and copy the full login link, paste it here, then finish login on this device.", loginLinkLabel: "Paste login link", emailOtpLabel: "Email code / token (optional)", completeLoginLink: "Log in on this device with link", checkDeviceLogin: "Check this device login", pullCloud: "Restore From Cloud", signOut: "Sign Out",
     faceId: "Face ID Quick Unlock", enableFaceId: "Enable Face ID Unlock", disableFaceId: "Disable Face ID Unlock", marketApi: "Market API", saveMarket: "Save Market Settings", encryption: "Cloud Data Encryption", passphrase: "Encryption Password", enableEncryption: "Enable Encryption & Sync", unlockEncryption: "Unlock Encrypted Data", disableEncryption: "Disable Local Encryption", localSave: "Local Save", localSaveHint: "Data is also kept on this device", backup: "Data Backup", backupHint: "Export JSON as a second safety net outside Supabase", exportBackup: "Export Backup JSON", importBackup: "Import Backup JSON", reset: "Restore Demo Data",
     cloudUnconfigured: "Not configured", cloudReady: "Configured, waiting for login", cloudSyncing: "Syncing...", cloudReadySync: "This device is signed in and ready to sync", signedInAs: "This device is signed in: {email}", configuredHint: "After saving config, test the connection first.",
     notConfiguredFinnhub: "Finnhub not configured, {fx}.", configuredFinnhub: "Finnhub configured, {fx}.", fxPending: "FX pending",
@@ -268,7 +268,7 @@ function applyStaticLanguage() {
     ["#pricesPage .price-hero .eyebrow", "marketSync"], ["#pricesPage .price-hero h2", "priceTracking"], ["#refreshPricesButton", "refreshPrices"], ["#pricesPage .section-heading .eyebrow", "watchlist"], ["#pricesPage .section-heading h2", "holdingsPrice"], ["#pricesPage .section-heading button", "add"], ["#pricesPage > .primary-button", "addPrice"],
     ["#notesPage .notes-intro .eyebrow", "notesEyebrow"], [".bottom-nav button[data-page='overviewPage']", "navOverview"], [".bottom-nav button[data-page='assetsPage']", "navAssets"], [".bottom-nav button[data-page='savingsPage']", "navSavings"], [".bottom-nav button[data-page='planningPage']", "navPlanning"], [".bottom-nav button[data-page='pricesPage']", "navPrices"],
     ["#settingsDialog .dialog-header h3", "settings"], ["#closeSettings", "done"], [".app-version", "version"], ["#languageLabel", "language"],
-    ["#saveSupabaseConfig", "saveSupabase"], ["#testSupabaseConnection", "testSupabase"], ["#sendLoginLink", "sendLoginLink"], ["#loginLinkHelp", "loginLinkHelp"], ["#loginLinkLabel", "loginLinkLabel"], ["#emailOtpLabel", "emailOtpLabel"], ["#completeLoginLinkButton", "completeLoginLink"], ["#checkDeviceLoginButton", "checkDeviceLogin"], ["#checkSignedInDeviceButton", "checkDeviceLogin"], ["#pullCloudButton", "pullCloud"], ["#signOutButton", "signOut"],
+    ["#saveSupabaseConfig", "saveSupabase"], ["#testSupabaseConnection", "testSupabase"], ["#authPasswordLabel", "authPassword"], ["#signInPasswordButton", "signInPassword"], ["#signUpPasswordButton", "signUpPassword"], ["#passwordLoginHelp", "passwordLoginHelp"], ["#sendLoginLink", "sendLoginLink"], ["#loginLinkHelp", "loginLinkHelp"], ["#loginLinkLabel", "loginLinkLabel"], ["#emailOtpLabel", "emailOtpLabel"], ["#completeLoginLinkButton", "completeLoginLink"], ["#checkDeviceLoginButton", "checkDeviceLogin"], ["#checkSignedInDeviceButton", "checkDeviceLogin"], ["#pullCloudButton", "pullCloud"], ["#signOutButton", "signOut"],
     ["#enableFaceIdButton", "enableFaceId"], ["#disableFaceIdButton", "disableFaceId"], ["#saveMarketConfigButton", "saveMarket"], ["#enableEncryptionButton", "enableEncryption"], ["#unlockEncryptionButton", "unlockEncryption"], ["#disableEncryptionButton", "disableEncryption"],
     ["#exportDataButton", "exportBackup"], ["#importBackupText", "importBackup"], ["#resetData", "reset"], ["#cancelDialog", "cancel"], ["#editorForm button[type='submit']", "save"], ["#deleteButton", "deleteRecord"],
     [".login-card h2", "welcome"]
@@ -736,6 +736,77 @@ async function signInWithEmail() {
     cloud.diagnosticType = "error";
     renderCloudUI();
     showToast(language === "en" ? "Send failed. Check diagnostics" : "发送失败，请查看诊断信息");
+  }
+}
+function authEmailAndPassword() {
+  return {
+    email: document.querySelector("#authEmailInput").value.trim(),
+    password: document.querySelector("#authPasswordInput").value
+  };
+}
+async function finishPasswordAuth(session, message) {
+  cloud.session = session;
+  document.querySelector("#authPasswordInput").value = "";
+  cloud.diagnostic = message;
+  cloud.diagnosticType = "ok";
+  renderCloudUI();
+  await reconcileCloudOnLogin();
+}
+async function signInWithPassword() {
+  const client = ensureSupabaseClient();
+  const { email, password } = authEmailAndPassword();
+  if (!client) return showToast(language === "en" ? "Save Supabase config first" : "请先保存 Supabase 配置");
+  if (!email || !password) return showToast(language === "en" ? "Enter email and password" : "请输入邮箱和密码");
+  try {
+    localStorage.setItem(LAST_EMAIL_KEY, email);
+    cloud.diagnostic = language === "en" ? "Signing in on this device..." : "正在此设备登录...";
+    cloud.diagnosticType = "";
+    renderCloudUI();
+    const { data: authData, error } = await client.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    if (!authData.session) throw new Error(language === "en" ? "Supabase did not return a session" : "Supabase 没有返回登录会话");
+    await finishPasswordAuth(authData.session, language === "en" ? `Success: this device is signed in as ${authData.session.user.email}.` : `成功：此设备已登录 ${authData.session.user.email}。`);
+    showToast(language === "en" ? "This device is signed in" : "此设备已登录");
+  } catch (error) {
+    cloud.diagnostic = `${language === "en" ? "Password sign-in failed" : "密码登录失败"}：${error.message || error}`;
+    cloud.diagnosticType = "error";
+    renderCloudUI();
+    showToast(language === "en" ? "Password sign-in failed" : "密码登录失败");
+  }
+}
+async function signUpWithPassword() {
+  const client = ensureSupabaseClient();
+  const { email, password } = authEmailAndPassword();
+  if (!client) return showToast(language === "en" ? "Save Supabase config first" : "请先保存 Supabase 配置");
+  if (!email || !password) return showToast(language === "en" ? "Enter email and password" : "请输入邮箱和密码");
+  if (password.length < 8) return showToast(language === "en" ? "Password needs at least 8 characters" : "密码至少需要 8 位");
+  try {
+    localStorage.setItem(LAST_EMAIL_KEY, email);
+    cloud.diagnostic = language === "en" ? "Creating password account..." : "正在创建邮箱密码账户...";
+    cloud.diagnosticType = "";
+    renderCloudUI();
+    const { data: authData, error } = await client.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: location.origin + location.pathname }
+    });
+    if (error) throw error;
+    if (authData.session) {
+      await finishPasswordAuth(authData.session, language === "en" ? `Account created and this device is signed in as ${authData.session.user.email}.` : `账户已创建，此设备已登录 ${authData.session.user.email}。`);
+      showToast(language === "en" ? "Account created and signed in" : "账户已创建并登录");
+      return;
+    }
+    cloud.diagnostic = language === "en"
+      ? "Account created. If Supabase asks for email confirmation, open the confirmation email once, then return here and use email password sign-in."
+      : "账户已创建。如果 Supabase 要求邮箱确认，请去邮箱点一次确认链接，然后回到这里用邮箱密码登录。";
+    cloud.diagnosticType = "ok";
+    renderCloudUI();
+    showToast(language === "en" ? "Check email, then sign in with password" : "请确认邮箱后用密码登录");
+  } catch (error) {
+    cloud.diagnostic = `${language === "en" ? "Password account creation failed" : "密码账户创建失败"}：${error.message || error}`;
+    cloud.diagnosticType = "error";
+    renderCloudUI();
+    showToast(language === "en" ? "Account creation failed" : "账户创建失败");
   }
 }
 function authParamsFromLink(value) {
@@ -1651,6 +1722,8 @@ document.querySelector("#saveSupabaseConfig").onclick = async () => {
   showToast("Supabase 配置已保存");
 };
 document.querySelector("#sendLoginLink").onclick = signInWithEmail;
+document.querySelector("#signInPasswordButton").onclick = signInWithPassword;
+document.querySelector("#signUpPasswordButton").onclick = signUpWithPassword;
 document.querySelector("#completeLoginLinkButton").onclick = completeLoginFromPastedLink;
 document.querySelector("#checkDeviceLoginButton").onclick = checkDeviceLogin;
 document.querySelector("#checkSignedInDeviceButton").onclick = checkDeviceLogin;
